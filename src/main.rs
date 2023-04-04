@@ -58,25 +58,26 @@ fn movement(
     time: Res<Time>,
     mut query: Query<&mut Transform, With<Movable>>,
 ) {
-    for mut transform in &mut query {
-        let mut direction = Vec3::ZERO;
-        if input.pressed(KeyCode::Up) {
-            direction.z -= 1.0;
-        }
-        if input.pressed(KeyCode::Down) {
-            direction.z += 1.0;
-        }
-        if input.pressed(KeyCode::Left) {
-            direction.x -= 1.0;
-        }
-        if input.pressed(KeyCode::Right) {
-            direction.x += 1.0;
-        }
+    // determine key-based movement
+    let mut direction = Vec3::ZERO;
+    if input.pressed(KeyCode::Up) {
+        direction.z -= 1.0;
+    }
+    if input.pressed(KeyCode::Down) {
+        direction.z += 1.0;
+    }
+    if input.pressed(KeyCode::Left) {
+        direction.x -= 1.0;
+    }
+    if input.pressed(KeyCode::Right) {
+        direction.x += 1.0;
+    }
 
-        transform.translation += time.delta_seconds() * 2.0 * direction;
-
-        // rotate around center
+for mut transform in &mut query {
         let gpos_start = transform.translation;
+        // key-based movement
+        transform.translation += time.delta_seconds() * 2.0 * direction;
+        // rotate around center
         transform.rotate_around(Vec3::new(0f32,0f32,0f32), Quat::from_rotation_y(time.delta_seconds() * 0.5));
         let gpos_end = transform.translation;
 
@@ -84,7 +85,6 @@ fn movement(
         let movement = gpos_end - gpos_start;
         let stable_vec = Vec3::from_array([0.0,-1.0,0.0]);
         let rotation_vec = movement.cross(stable_vec);
-        //transform.rotate_local_axis(movement, TAU * time.delta_seconds() * 0.5);
         transform.rotate_x(rotation_vec.x * TAU * time.delta_seconds() * 50.0);
         transform.rotate_y(rotation_vec.y * TAU * time.delta_seconds() * 50.0);
         transform.rotate_z(rotation_vec.z * TAU * time.delta_seconds() * 50.0);
