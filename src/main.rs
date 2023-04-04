@@ -1,5 +1,5 @@
 use std::f32::consts::TAU;
-use bevy::prelude::*;
+use bevy::{prelude::*};
 
 fn main() {
     App::new()
@@ -26,10 +26,11 @@ fn setup(
         ..default()
     });
     // cubes in a row
-    for i in 1..11 {
+    let cube_count = 10;
+    for i in 1..=cube_count {
         commands.spawn((PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 0.12 })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            material: materials.add(calc_rainbow_color(0, 10, i-1).into()),
             transform: Transform::from_xyz((i as f32 - 5.0) / 2.0 - 0.25, 0.5, 0.0),
             ..default()
         },
@@ -89,4 +90,11 @@ fn movement(
         transform.rotate_z(rotation_vec.z * TAU * time.delta_seconds() * 50.0);
 
     }
+}
+
+fn calc_rainbow_color(min :usize, max :usize, val :usize) -> Color {
+    let min_hue = 240.0;
+    let max_hue = 0.0;
+    let cur_percent = (val - min) as f32 / (max - min) as f32;
+    Color::hsl(((cur_percent * (max_hue-min_hue) ) + min_hue) as f32, 1.0, 0.5)
 }
