@@ -9,7 +9,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Cube-Mania!    ---> use cursor keys to move, Esc to quit <---".to_string(),
+                title: "Cube-Mania!    ---> use cursor keys to move, right-mouse to rotate, Esc to quit <---".to_string(),
                 ..default()
             }),
             ..default()
@@ -127,13 +127,22 @@ fn calc_rainbow_color(min :usize, max :usize, val :usize) -> Color {
 
 fn orbit_camera(
     time: Res<Time>,
-    mut _ev_motion: EventReader<MouseMotion>,
+    mut ev_motion: EventReader<MouseMotion>,
     mut _ev_scroll: EventReader<MouseWheel>,
-    _input_mouse: Res<Input<MouseButton>>,
+    input_mouse: Res<Input<MouseButton>>,
     mut query: Query<&mut Transform, With<CameraControl>>,
 ) {
+    let orbit_button = MouseButton::Right;
+
+    let mut rotation_move = Vec2::ZERO;
+    if input_mouse.pressed(orbit_button) {
+        for ev in ev_motion.iter() {
+            rotation_move += ev.delta;
+        }
+    }
+
     for mut transform in &mut query {
         // rotate around center
-        transform.rotate_around(Vec3::ZERO, Quat::from_rotation_y(time.delta_seconds() * 0.15));
+        transform.rotate_around(Vec3::ZERO, Quat::from_rotation_y(rotation_move.x * 0.01 + time.delta_seconds() * 0.15));
     }
 }
