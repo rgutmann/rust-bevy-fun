@@ -2,29 +2,31 @@ use std::f32::consts::TAU;
 use rand::prelude::*;
 use bevy::prelude::*;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::input::mouse::{MouseWheel,MouseMotion};
+use smooth_bevy_cameras::LookTransformPlugin;
+use smooth_bevy_cameras::controllers::orbit::{OrbitCameraPlugin, OrbitCameraBundle, OrbitCameraController};
 
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Cube-Mania!    ---> use cursor keys to move, right-mouse to rotate, Esc to quit <---".to_string(),
+                title: "Cube-Mania!    ---> use cursor keys to move, ctrl+mouse to rotate, scroll to zoom, Esc to quit <---".to_string(),
                 ..default()
             }),
             ..default()
         }))
-        .add_startup_system(setup)
-        .add_system(movement)
-        .add_system(orbit_camera)
         .add_system(bevy::window::close_on_esc)
+        .add_plugin(LookTransformPlugin)
+        .add_plugin(OrbitCameraPlugin::default())
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_startup_system(setup)
+        .add_system(cube_movement)
         .run();
 }
 
 #[derive(Component)]
-struct Movable;
+struct MovableCube;
 
 #[derive(Component)]
 struct CameraControl;
@@ -56,7 +58,7 @@ fn setup(
             transform: position,
             ..default()
         },
-        Movable,));
+        MovableCube,));
     }
 
     // light
@@ -70,18 +72,20 @@ fn setup(
         ..default()
     });
     // camera
-    commands.spawn((Camera3dBundle {
-        transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    }, 
-    CameraControl,));
+    commands.spawn(Camera3dBundle::default())
+        .insert(OrbitCameraBundle::new(
+            OrbitCameraController::default(),
+            Vec3::new(-2.0, 2.5, 5.0), 
+            Vec3::new(0., 0., 0.),
+            Vec3::Y,
+        ));
 }
 
 
-fn movement(
+fn cube_movement(
     input: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut query: Query<&mut Transform, With<Movable>>,
+    mut query: Query<&mut Transform, With<MovableCube>>,
 ) {
     // determine key-based movement
     let mut direction = Vec3::ZERO;
@@ -122,27 +126,4 @@ fn calc_rainbow_color(min :usize, max :usize, val :usize) -> Color {
     let max_hue = 0.0;
     let cur_percent = (val - min) as f32 / (max - min) as f32;
     Color::hsl(((cur_percent * (max_hue-min_hue) ) + min_hue) as f32, 1.0, 0.5)
-}
-
-
-fn orbit_camera(
-    time: Res<Time>,
-    mut ev_motion: EventReader<MouseMotion>,
-    mut _ev_scroll: EventReader<MouseWheel>,
-    input_mouse: Res<Input<MouseButton>>,
-    mut query: Query<&mut Transform, With<CameraControl>>,
-) {
-    let orbit_button = MouseButton::Right;
-
-    let mut rotation_move = Vec2::ZERO;
-    if input_mouse.pressed(orbit_button) {
-        for ev in ev_motion.iter() {
-            rotation_move += ev.delta;
-        }
-    }
-
-    for mut transform in &mut query {
-        // rotate around center
-        transform.rotate_around(Vec3::ZERO, Quat::from_rotation_y(rotation_move.x * 0.01 + time.delta_seconds() * 0.15));
-    }
 }
