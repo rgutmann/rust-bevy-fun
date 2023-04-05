@@ -45,10 +45,13 @@ fn setup(
     // plane
     let plane_size = 5.0;
     commands.spawn(PbrBundle {
-        mesh: meshes.add(shape::Plane::from_size(plane_size).into()),
-        material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
-        ..default()
-    });
+            mesh: meshes.add(shape::Box::new(plane_size, 0.1, plane_size).into()),
+            material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+            transform: Transform::from_xyz(0.0, -0.1, 0.0),
+            ..default()
+        })
+        .insert(Collider::cuboid(plane_size/2.0, 0.05, plane_size/2.0));
+
 
     // cubes in a row
     let cube_count = 50;
@@ -66,11 +69,6 @@ fn setup(
         MovableCube,));
     }
 
-    /* Create the ground. */
-    commands
-        .spawn(Collider::cuboid(100.0, 0.1, 100.0))
-        .insert(TransformBundle::from(Transform::from_xyz(0.0, 0.0, 0.0)));
-
     /* Create the bouncing ball. */
     commands
         .spawn(RigidBody::Dynamic)
@@ -82,8 +80,7 @@ fn setup(
         })
         .insert(Collider::ball(0.5))
         .insert(ColliderDebugColor(Color::WHITE))
-        .insert(Restitution::coefficient(0.7))
-        .insert(TransformBundle::from(Transform::from_xyz(0.0, 4.0, 0.0)));
+        .insert(Restitution::coefficient(0.7));
 
     // light
     commands.spawn(PointLightBundle {
