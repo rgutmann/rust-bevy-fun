@@ -1,7 +1,9 @@
 use std::f32::consts::TAU;
-use bevy::{prelude::*};
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use rand::prelude::*;
+use bevy::prelude::*;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::input::mouse::{MouseWheel,MouseMotion};
+
 
 fn main() {
     App::new()
@@ -14,6 +16,7 @@ fn main() {
         }))
         .add_startup_system(setup)
         .add_system(movement)
+        .add_system(orbit_camera)
         .add_system(bevy::window::close_on_esc)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
@@ -22,6 +25,9 @@ fn main() {
 
 #[derive(Component)]
 struct Movable;
+
+#[derive(Component)]
+struct CameraControl;
 
 /// set up 3D scene
 fn setup(
@@ -64,10 +70,11 @@ fn setup(
         ..default()
     });
     // camera
-    commands.spawn(Camera3dBundle {
+    commands.spawn((Camera3dBundle {
         transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
-    });
+    }, 
+    CameraControl,));
 }
 
 
@@ -96,12 +103,12 @@ fn movement(
         // key-based movement
         transform.translation += time.delta_seconds() * 2.0 * direction;
         // rotate around center
-        transform.rotate_around(Vec3::new(0f32,0f32,0f32), Quat::from_rotation_y(time.delta_seconds() * 0.5));
+        transform.rotate_around(Vec3::ZERO, Quat::from_rotation_y(time.delta_seconds() * 0.5));
         let gpos_end = transform.translation;
 
         // rotate object in direction of movement
         let movement = gpos_end - gpos_start;
-        let stable_vec = Vec3::from_array([0.0,-1.0,0.0]);
+        let stable_vec = Vec3::Y * -1.0;
         let rotation_vec = movement.cross(stable_vec);
         transform.rotate_x(rotation_vec.x * TAU * time.delta_seconds() * 50.0);
         transform.rotate_y(rotation_vec.y * TAU * time.delta_seconds() * 50.0);
@@ -115,4 +122,18 @@ fn calc_rainbow_color(min :usize, max :usize, val :usize) -> Color {
     let max_hue = 0.0;
     let cur_percent = (val - min) as f32 / (max - min) as f32;
     Color::hsl(((cur_percent * (max_hue-min_hue) ) + min_hue) as f32, 1.0, 0.5)
+}
+
+
+fn orbit_camera(
+    time: Res<Time>,
+    mut _ev_motion: EventReader<MouseMotion>,
+    mut _ev_scroll: EventReader<MouseWheel>,
+    _input_mouse: Res<Input<MouseButton>>,
+    mut query: Query<&mut Transform, With<CameraControl>>,
+) {
+    for mut transform in &mut query {
+        // rotate around center
+        transform.rotate_around(Vec3::ZERO, Quat::from_rotation_y(time.delta_seconds() * 0.15));
+    }
 }
