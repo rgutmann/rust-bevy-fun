@@ -57,24 +57,8 @@ fn setup(
         .insert(Collider::cuboid(plane_size/2.0, 0.05, plane_size/2.0));
 
 
-    // cubes in a row
-    let cube_count = 50;
-    let mut rng = rand::thread_rng();
-    for i in 1..=cube_count {
-        let mut position = Transform::from_xyz(rng.gen_range((plane_size*0.2)..(plane_size*0.4)),rng.gen_range(0.3..0.8),0.0);
-        position.translate_around(Vec3::ZERO, Quat::from_axis_angle(Vec3::Y, -TAU / cube_count as f32 * i as f32));
-
-        commands.spawn((PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.12 })),
-            material: materials.add(calc_rainbow_color(0, cube_count, i-1).into()),
-            transform: position,
-            ..default()
-        },
-        MovableCube,));
-    }
-
-    /* Create the bouncing ball. */
-    commands
+    // Create the bouncing ball
+    let ball_entity = commands
         .spawn(RigidBody::Dynamic)
         .insert((PbrBundle {
             mesh: meshes.add(Mesh::from(shape::UVSphere { radius: 0.5, sectors: 36, stacks: 36 })),
@@ -85,7 +69,24 @@ fn setup(
         .insert(Collider::ball(0.5))
         .insert(ColliderDebugColor(Color::WHITE))
         .insert(Restitution::coefficient(0.7))
-        ;
+        .id();
+    // Cubes as childs
+    let cube_count = 50;
+    let mut rng = rand::thread_rng();
+    for i in 1..=cube_count {
+        let mut position = Transform::from_xyz(rng.gen_range((plane_size*0.2)..(plane_size*0.4)),rng.gen_range(-0.25..0.25),0.0);
+        position.translate_around(Vec3::ZERO, Quat::from_axis_angle(Vec3::Y, -TAU / cube_count as f32 * i as f32));
+
+        let child = commands.spawn((PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.12 })),
+            material: materials.add(calc_rainbow_color(0, cube_count, i-1).into()),
+            transform: position,
+            ..default()
+        }, MovableCube,)).id();
+
+        commands.entity(ball_entity).push_children(&[child]);
+    }
+
 
     // light
     commands.spawn(PointLightBundle {
@@ -136,7 +137,6 @@ fn ball_movement(
 
 
 fn cube_movement(
-    input: Res<Input<KeyCode>>,
     time: Res<Time>,
     mut query: Query<&mut Transform, With<MovableCube>>,
 ) {
