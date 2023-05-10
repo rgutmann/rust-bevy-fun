@@ -6,7 +6,9 @@ use bevy::prelude::*;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy_rapier3d::prelude::*;
 //use bevy_rapier3d::render::RapierDebugRenderPlugin;
+use helper::{ SimpleTween, VelocityTween };
 
+mod helper;
 
 fn main() {
     App::new()
@@ -47,69 +49,24 @@ impl MovableBall {
 impl Default for MovableBall {
     fn default() -> Self {
         MovableBall { 
-            velocity: VelocityTween { 
-                cur: Vec3::ZERO, 
-                min: 0.0, 
-                max: MovableBall::MAX_MOVEMENT_SPEED, 
-                inc: MovableBall::INC_MOVEMENT_SPEED, 
-            },
-            orbit_speed: SimpleTween { 
-                cur: MovableBall::MIN_ORBIT_SPEED, 
-                min: MovableBall::MIN_ORBIT_SPEED, 
-                max: MovableBall::MAX_ORBIT_SPEED, 
-                inc: MovableBall::INC_ORBIT_SPEED, 
-            }
+            velocity: VelocityTween::new( 
+                Vec3::ZERO, 
+                0.0, 
+                MovableBall::MAX_MOVEMENT_SPEED, 
+                MovableBall::INC_MOVEMENT_SPEED, 
+            ),
+            orbit_speed: SimpleTween::new( 
+                MovableBall::MIN_ORBIT_SPEED, 
+                MovableBall::MIN_ORBIT_SPEED, 
+                MovableBall::MAX_ORBIT_SPEED, 
+                MovableBall::INC_ORBIT_SPEED, 
+            )
         }
     }
 }
 
 #[derive(Component)]
 struct CameraControl;
-
-#[derive(Debug)]
-struct SimpleTween {
-    cur:f32,
-    min:f32,
-    max:f32,
-    inc:f32,
-}
-impl SimpleTween {
-    fn apply_times(&mut self, times: isize) {
-        self.cur = (self.cur + (times as f32 * self.inc)).max(self.min).min(self.max);
-    }
-    fn increase_once(&mut self) {
-        self.apply_times(1);
-    }
-    fn decrease_once(&mut self) {
-        self.apply_times(-1);
-    }
-}
-
-#[derive(Debug)]
-struct VelocityTween {
-    cur:Vec3,
-    min:f32,
-    max:f32,
-    inc:f32,
-}
-impl VelocityTween {
-    fn apply_times(&mut self, delta_seconds: f32, direction:Vec3) {
-        let new_velocity = self.cur + (delta_seconds as f32 * self.inc * direction.normalize());
-        let new_speed = new_velocity.length();
-        let valid_speed = new_speed.max(self.min).min(self.max);
-        let valid_velocity = match new_speed {
-            s if s > 0.0 => (new_velocity / new_speed) * valid_speed,
-            _ => Vec3::ZERO,
-        };
-        self.cur = valid_velocity;
-    }
-    fn increase_once(&mut self, delta_seconds: f32, direction:Vec3) {
-        self.apply_times(delta_seconds, direction);
-    }
-    fn decrease(&mut self, delta_seconds: f32) {
-        self.apply_times(-1.0 * delta_seconds, self.cur);
-    }
-}
 
 /// set up 3D scene
 fn setup(
@@ -226,9 +183,9 @@ fn user_actions(
             let ball_rotation = ball_transform.rotation;
             let mut movement = Transform::from_translation(direction);
             movement.rotate_around(Vec3::ZERO, ball_rotation);
-            ball.velocity.increase_once(time.delta_seconds(), movement.translation);
+            ball.velocity.add_velocity(time.delta_seconds(), movement.translation);
         } else {
-            ball.velocity.decrease(time.delta_seconds());
+            ball.velocity.slowdown(time.delta_seconds());
         }
         println!("{:?}", ball.velocity);
 
@@ -238,7 +195,7 @@ fn user_actions(
     } else {
         // airborne... current movement is locked
     }
-    ball_transform.translation += ball.velocity.cur;
+    ball_transform.translation += *ball.velocity.current_velocity();
 
     //
     // ball rotation
@@ -266,7 +223,7 @@ fn cube_movement(
     ball_query: Query<&MovableBall, (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
 ) {
     let ball = ball_query.get_single().unwrap();
-    let rotation_speed = ball.orbit_speed.cur;
+    let rotation_speed = ball.orbit_speed.current_value();
 
     for mut transform in &mut cube_query {
         let gpos_start = transform.translation;
