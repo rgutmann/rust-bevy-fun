@@ -103,7 +103,7 @@ fn setup(
     
     // Attach camera to ball
     let camera_entity = commands.spawn((Camera3dBundle {
-            transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: Transform::from_xyz(2.0, 2.5, 5.0).looking_at(Vec3::new(1.0, 1.25, 0.0), Vec3::Y),
             ..default()
         }, 
         CameraControl,
@@ -117,8 +117,7 @@ fn ball_movement(
     input: Res<Input<KeyCode>>,
     time: Res<Time>,
     mut ev_motion: EventReader<MouseMotion>,
-    mut ball_query: Query<&mut Transform, (With<MovableBall>,Without<CameraControl>)>,
-    camera_query: Query<&Transform, With<CameraControl>>,
+    mut ball_query: Query<&mut Transform, (With<MovableBall>,Without<CameraControl>)>
 ) {
     // determine key-based movement
     let mut direction = Vec3::ZERO;
@@ -136,14 +135,12 @@ fn ball_movement(
     }
     // key-based movement
     let mut ball_transform = ball_query.single_mut();
-    let camera_transform = camera_query.single();
-    let camera_rotation = camera_transform.rotation;
-    let camera_translation = camera_transform.translation;
-    let mut translation = Transform::from_translation(time.delta_seconds() * 2.0 * direction);
-    print!("{:?} rot({:?}) trans({:?})", translation, camera_rotation, camera_rotation);
-    translation.rotate_local_y(camera_rotation.y);
-    println!(" -> {:?}", translation);
-    ball_transform.translation += translation.translation;
+    let ball_rotation = ball_transform.rotation;
+    let mut movement = Transform::from_translation(time.delta_seconds() * 2.0 * direction);
+    println!("move({:?}) brot({:?})", movement, ball_rotation);
+    movement.rotate_around(Vec3::ZERO, ball_rotation);
+    println!("  -> move+({:?})", movement);
+    ball_transform.translation += movement.translation;
 
     // determine rotation
     let mut rotation_move = Vec2::ZERO;
