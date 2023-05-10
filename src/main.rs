@@ -1,5 +1,5 @@
 use std::f32::consts::TAU;
-use bevy::input::mouse::{MouseMotion, MouseWheel};
+use bevy::input::mouse::{MouseMotion, MouseButton};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
 use rand::prelude::*;
 use bevy::prelude::*;
@@ -23,7 +23,7 @@ fn main() {
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_startup_system(setup)
-        .add_system(ball_movement)
+        .add_system(user_actions)
         .add_system(cube_movement)
         .run();
 }
@@ -31,8 +31,25 @@ fn main() {
 #[derive(Component)]
 struct MovableCube;
 
-#[derive(Component)]
-struct MovableBall;
+#[derive(Component,Debug)]
+struct MovableBall {
+    player_speed:f32,
+    min_cube_rotation_speed:f32,
+    cur_cube_rotation_speed:f32,
+    max_cube_rotation_speed:f32,
+    inc_cube_rotation_speed:f32,
+}
+impl Default for MovableBall {
+    fn default() -> Self {
+        MovableBall { 
+            player_speed: 2.0,
+            min_cube_rotation_speed: 50.0, 
+            cur_cube_rotation_speed: 50.0, 
+            max_cube_rotation_speed: 200.0,
+            inc_cube_rotation_speed: 2.0,
+        }
+    }
+}
 
 #[derive(Component)]
 struct CameraControl;
@@ -44,7 +61,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // plane
-    let plane_size = 5.0;
+    let plane_size = 10.0;
     commands.spawn(PbrBundle {
             mesh: meshes.add(shape::Box::new(plane_size, 0.1, plane_size).into()),
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
@@ -63,7 +80,7 @@ fn setup(
                 transform: Transform::from_xyz(0.0, 4.0, 0.0),
                 ..default()
              }, 
-             MovableBall,
+             MovableBall::default(),
         ))
         .insert(Collider::ball(0.5))
         .insert(ColliderDebugColor(Color::WHITE))
@@ -74,7 +91,7 @@ fn setup(
     let cube_count = 50;
     let mut rng = rand::thread_rng();
     for i in 1..=cube_count {
-        let mut position = Transform::from_xyz(rng.gen_range((plane_size*0.2)..(plane_size*0.4)),rng.gen_range(-0.25..0.25),0.0);
+        let mut position = Transform::from_xyz(rng.gen_range(1.0..2.0),rng.gen_range(-0.25..0.25),0.0);
         position.translate_around(Vec3::ZERO, Quat::from_axis_angle(Vec3::Y, -TAU / cube_count as f32 * i as f32));
 
         let child = commands.spawn((PbrBundle {
@@ -113,65 +130,92 @@ fn setup(
 }
 
 
-fn ball_movement(
+fn user_actions(
     input: Res<Input<KeyCode>>,
     time: Res<Time>,
     mut ev_motion: EventReader<MouseMotion>,
-    mut ball_query: Query<&mut Transform, (With<MovableBall>,Without<CameraControl>)>
+    res_buttons:  Res<Input<MouseButton>>,
+    mut ball_query: Query<(&mut MovableBall, &mut Transform), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
 ) {
-    // determine key-based movement
+    let (mut ball, mut ball_transform) = ball_query.single_mut();
+    let player_speed = ball.player_speed;
+
+    //
+    // ball movement
+    // accumulate key-based movement
     let mut direction = Vec3::ZERO;
     if input.pressed(KeyCode::W) {
-        direction.z -= 1.0;
+        direction.z -= player_speed;
     }
     if input.pressed(KeyCode::S) {
-        direction.z += 1.0;
+        direction.z += player_speed;
     }
     if input.pressed(KeyCode::A) {
-        direction.x -= 1.0;
+        direction.x -= player_speed;
     }
     if input.pressed(KeyCode::D) {
-        direction.x += 1.0;
+        direction.x += player_speed;
     }
-    // key-based movement
-    let mut ball_transform = ball_query.single_mut();
+    //let mut ball_transform = ball_query.single_mut();
     let ball_rotation = ball_transform.rotation;
     let mut movement = Transform::from_translation(time.delta_seconds() * 2.0 * direction);
-    println!("move({:?}) brot({:?})", movement, ball_rotation);
     movement.rotate_around(Vec3::ZERO, ball_rotation);
-    println!("  -> move+({:?})", movement);
     ball_transform.translation += movement.translation;
 
-    // determine rotation
+    //
+    // ball rotation
+    // accumulate "ball/camera" rotation from mouse movement
     let mut rotation_move = Vec2::ZERO;
     for ev in ev_motion.iter() {
         rotation_move += ev.delta;
     }
-    // rotate around center
+    // rotate ball accordingly
     ball_transform.rotate_y(rotation_move.x * 0.01);
+
+    //
+    // cubes acceleration
+    let min_rotation_speed = ball.min_cube_rotation_speed;
+    let mut cur_rotation_speed = ball.cur_cube_rotation_speed;
+    let max_rotation_speed = ball.max_cube_rotation_speed;
+    let inc_rotation_speed = ball.inc_cube_rotation_speed;
+    if res_buttons.pressed(MouseButton::Left) {
+        cur_rotation_speed += inc_rotation_speed;
+    } else {
+        cur_rotation_speed -= inc_rotation_speed;
+    }
+    if cur_rotation_speed > max_rotation_speed {
+        cur_rotation_speed = max_rotation_speed;
+    } else if cur_rotation_speed < min_rotation_speed {
+        cur_rotation_speed = min_rotation_speed;
+    }
+    println!("new crot_speed: {:?}",cur_rotation_speed);
+    ball.cur_cube_rotation_speed = cur_rotation_speed;
 }
 
 
 fn cube_movement(
     time: Res<Time>,
-    mut query: Query<&mut Transform, With<MovableCube>>,
+    mut cube_query: Query<&mut Transform, With<MovableCube>>,
+    ball_query: Query<&MovableBall, (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
 ) {
-    for mut transform in &mut query {
+    let ball = ball_query.get_single().unwrap();
+    let rotation_speed = ball.cur_cube_rotation_speed;
+
+    for mut transform in &mut cube_query {
         let gpos_start = transform.translation;
         // rotate around center
-        transform.rotate_around(Vec3::ZERO, Quat::from_rotation_y(time.delta_seconds() * 0.5));
+        transform.rotate_around(Vec3::ZERO, Quat::from_rotation_y(time.delta_seconds() * rotation_speed / 100.0));
         let gpos_end = transform.translation;
 
         // rotate object in direction of movement
         let movement = gpos_end - gpos_start;
         let stable_vec = Vec3::Y * -1.0;
         let rotation_vec = movement.cross(stable_vec);
-        transform.rotate_x(rotation_vec.x * TAU * time.delta_seconds() * 50.0);
-        transform.rotate_y(rotation_vec.y * TAU * time.delta_seconds() * 50.0);
-        transform.rotate_z(rotation_vec.z * TAU * time.delta_seconds() * 50.0);
+        transform.rotate_x(rotation_vec.x * TAU * time.delta_seconds() * rotation_speed / 2.0);
+        transform.rotate_y(rotation_vec.y * TAU * time.delta_seconds() * rotation_speed / 2.0);
+        transform.rotate_z(rotation_vec.z * TAU * time.delta_seconds() * rotation_speed / 2.0);
     }
 }
-
 
 fn calc_rainbow_color(min :usize, max :usize, val :usize) -> Color {
     let min_hue = 360.0;
