@@ -12,7 +12,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Cube-Mania!    ---> use cursor keys to move, ctrl+mouse to rotate, scroll to zoom, Esc to quit <---".to_string(),
+                title: "Cube-Mania!    ---> use WASD to move, mouse to rotate, left MB to power up, Esc to quit <---".to_string(),
                 ..default()
             }),
             ..default()
@@ -33,20 +33,20 @@ struct MovableCube;
 
 #[derive(Component,Debug)]
 struct MovableBall {
-    player_speed:f32,
-    min_cube_rotation_speed:f32,
-    cur_cube_rotation_speed:f32,
-    max_cube_rotation_speed:f32,
-    inc_cube_rotation_speed:f32,
+    movement_speed:f32,
+    min_orbit_speed:f32,
+    cur_orbit_speed:f32,
+    max_orbit_speed:f32,
+    inc_orbit_speed:f32,
 }
 impl Default for MovableBall {
     fn default() -> Self {
         MovableBall { 
-            player_speed: 2.0,
-            min_cube_rotation_speed: 50.0, 
-            cur_cube_rotation_speed: 50.0, 
-            max_cube_rotation_speed: 200.0,
-            inc_cube_rotation_speed: 2.0,
+            movement_speed: 2.0,
+            min_orbit_speed: 50.0, 
+            cur_orbit_speed: 50.0, 
+            max_orbit_speed: 200.0,
+            inc_orbit_speed: 2.0,
         }
     }
 }
@@ -138,7 +138,7 @@ fn user_actions(
     mut ball_query: Query<(&mut MovableBall, &mut Transform), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
 ) {
     let (mut ball, mut ball_transform) = ball_query.single_mut();
-    let player_speed = ball.player_speed;
+    let player_speed = ball.movement_speed;
 
     //
     // ball movement
@@ -174,22 +174,11 @@ fn user_actions(
 
     //
     // cubes acceleration
-    let min_rotation_speed = ball.min_cube_rotation_speed;
-    let mut cur_rotation_speed = ball.cur_cube_rotation_speed;
-    let max_rotation_speed = ball.max_cube_rotation_speed;
-    let inc_rotation_speed = ball.inc_cube_rotation_speed;
     if res_buttons.pressed(MouseButton::Left) {
-        cur_rotation_speed += inc_rotation_speed;
+        ball.cur_orbit_speed = (ball.cur_orbit_speed + ball.inc_orbit_speed).min(ball.max_orbit_speed);
     } else {
-        cur_rotation_speed -= inc_rotation_speed;
+        ball.cur_orbit_speed = (ball.cur_orbit_speed - ball.inc_orbit_speed).max(ball.min_orbit_speed);
     }
-    if cur_rotation_speed > max_rotation_speed {
-        cur_rotation_speed = max_rotation_speed;
-    } else if cur_rotation_speed < min_rotation_speed {
-        cur_rotation_speed = min_rotation_speed;
-    }
-    println!("new crot_speed: {:?}",cur_rotation_speed);
-    ball.cur_cube_rotation_speed = cur_rotation_speed;
 }
 
 
@@ -199,7 +188,7 @@ fn cube_movement(
     ball_query: Query<&MovableBall, (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
 ) {
     let ball = ball_query.get_single().unwrap();
-    let rotation_speed = ball.cur_cube_rotation_speed;
+    let rotation_speed = ball.cur_orbit_speed;
 
     for mut transform in &mut cube_query {
         let gpos_start = transform.translation;
