@@ -12,7 +12,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Cube-Mania!    ---> use WASD to move, mouse to rotate, left MB to power up, Esc to quit <---".to_string(),
+                title: "Cube-Mania!    ---> use WASD to move, mouse to rotate, left MB to power up, Space to jump, Esc to quit <---".to_string(),
                 ..default()
             }),
             ..default()
@@ -33,12 +33,13 @@ struct MovableCube;
 
 #[derive(Component,Debug)]
 struct MovableBall {
-    cur_movement:Vec3,
+    velocity:VelocityTween,
     orbit_speed:SimpleTween,
 }
 impl MovableBall {
     const RADIUS:f32 = 0.5;
-    const MOVEMENT_SPEED:f32 = 2.0;
+    const MAX_MOVEMENT_SPEED:f32 = 0.1;
+    const INC_MOVEMENT_SPEED:f32 = 0.3; // times delta_seconds
     const MIN_ORBIT_SPEED:f32 = 50.0;
     const MAX_ORBIT_SPEED:f32 = 300.0;
     const INC_ORBIT_SPEED:f32 = 3.0;
@@ -46,7 +47,12 @@ impl MovableBall {
 impl Default for MovableBall {
     fn default() -> Self {
         MovableBall { 
-            cur_movement: Vec3::ZERO,
+            velocity: VelocityTween { 
+                cur: Vec3::ZERO, 
+                min: 0.0, 
+                max: MovableBall::MAX_MOVEMENT_SPEED, 
+                inc: MovableBall::INC_MOVEMENT_SPEED, 
+            },
             orbit_speed: SimpleTween { 
                 cur: MovableBall::MIN_ORBIT_SPEED, 
                 min: MovableBall::MIN_ORBIT_SPEED, 
@@ -76,6 +82,32 @@ impl SimpleTween {
     }
     fn decrease_once(&mut self) {
         self.apply_times(-1);
+    }
+}
+
+#[derive(Debug)]
+struct VelocityTween {
+    cur:Vec3,
+    min:f32,
+    max:f32,
+    inc:f32,
+}
+impl VelocityTween {
+    fn apply_times(&mut self, delta_seconds: f32, direction:Vec3) {
+        let new_velocity = self.cur + (delta_seconds as f32 * self.inc * direction.normalize());
+        let new_speed = new_velocity.length();
+        let valid_speed = new_speed.max(self.min).min(self.max);
+        let valid_velocity = match new_speed {
+            s if s > 0.0 => (new_velocity / new_speed) * valid_speed,
+            _ => Vec3::ZERO,
+        };
+        self.cur = valid_velocity;
+    }
+    fn increase_once(&mut self, delta_seconds: f32, direction:Vec3) {
+        self.apply_times(delta_seconds, direction);
+    }
+    fn decrease(&mut self, delta_seconds: f32) {
+        self.apply_times(-1.0 * delta_seconds, self.cur);
     }
 }
 
@@ -171,7 +203,6 @@ fn user_actions(
     mut ball_query: Query<(&mut MovableBall, &mut Transform, &mut ExternalImpulse), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
 ) {
     let (mut ball, mut ball_transform, mut ext_impulse) = ball_query.single_mut();
-    let movement_speed = MovableBall::MOVEMENT_SPEED;
     
     //
     // input based movement, but only when touching ground
@@ -180,23 +211,26 @@ fn user_actions(
         // accumulate key-based movement
         let mut direction = Vec3::ZERO;
         if input.pressed(KeyCode::W) {
-            direction.z -= movement_speed;
+            direction.z -= 1.0;
         }
         if input.pressed(KeyCode::S) {
-            direction.z += movement_speed;
+            direction.z += 1.0;
         }
         if input.pressed(KeyCode::A) {
-            direction.x -= movement_speed;
+            direction.x -= 1.0;
         }
         if input.pressed(KeyCode::D) {
-            direction.x += movement_speed;
+            direction.x += 1.0;
         }
-        println!("{:?}", ball_transform);
-        //let mut ball_transform = ball_query.single_mut();
-        let ball_rotation = ball_transform.rotation;
-        let mut movement = Transform::from_translation(time.delta_seconds() * 2.0 * direction);
-        movement.rotate_around(Vec3::ZERO, ball_rotation);
-        ball.cur_movement = movement.translation;
+        if direction.length() >= 1.0 {
+            let ball_rotation = ball_transform.rotation;
+            let mut movement = Transform::from_translation(direction);
+            movement.rotate_around(Vec3::ZERO, ball_rotation);
+            ball.velocity.increase_once(time.delta_seconds(), movement.translation);
+        } else {
+            ball.velocity.decrease(time.delta_seconds());
+        }
+        println!("{:?}", ball.velocity);
 
         if input.pressed(KeyCode::Space) {
             ext_impulse.impulse += Vec3::new(0.0, 2.0, 0.0);
@@ -204,7 +238,7 @@ fn user_actions(
     } else {
         // airborne... current movement is locked
     }
-    ball_transform.translation += ball.cur_movement;
+    ball_transform.translation += ball.velocity.cur;
 
     //
     // ball rotation
