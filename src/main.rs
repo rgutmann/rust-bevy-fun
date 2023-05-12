@@ -8,7 +8,7 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy_rapier3d::prelude::*;
 use bevy::window::{CursorGrabMode, Cursor};
 //use bevy_rapier3d::render::RapierDebugRenderPlugin;
-use helper::{ SimpleTween, VelocityTween };
+use helper::{ SimpleTween, VelocityTween, format_vec3f, println_vec3f };
 
 mod helper;
 
@@ -176,8 +176,7 @@ fn user_actions(
 ) {
     let (mut ball, mut ball_transform, mut velocity) = ball_query.single_mut();
     
-    //println!("{:?}", ball_transform.translation);
-    println!("{:?}", velocity.linvel);
+    println!("LOC:{} - VEL:{} - BVEL:{}", format_vec3f(ball_transform.translation), format_vec3f(velocity.linvel), format_vec3f(*ball.velocity.current_velocity()));
 
     //
     // input based movement, but only when touching ground

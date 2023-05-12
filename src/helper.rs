@@ -1,4 +1,15 @@
+#![allow(unused)]
 use bevy::prelude::Vec3;
+
+#[inline(always)]
+pub fn format_vec3f(vec: Vec3) -> String {
+    format!("({:>8.3},{:>8.3},{:>8.3})", vec[0], vec[1], vec[2])
+}
+
+#[inline(always)]
+pub fn println_vec3f(vec: Vec3) {
+    println!("({:>8.3},{:>8.3},{:>8.3})", vec[0], vec[1], vec[2]);
+}
 
 #[derive(Debug)]
 pub struct SimpleTween {
