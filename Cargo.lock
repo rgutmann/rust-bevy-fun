@@ -536,6 +536,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_infinite_grid"
+version = "0.7.0"
+source = "git+https://github.com/ForesightMiningSoftwareCorporation/bevy_infinite_grid?branch=main#51dba8bde9a0f782f8cc4c85a30ff4ec507fbdc7"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "bevy_input"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2771,6 +2779,7 @@ name = "rust-bevy-fun"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_infinite_grid",
  "bevy_rapier3d",
  "rand",
 ]
