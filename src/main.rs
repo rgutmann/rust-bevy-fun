@@ -35,7 +35,7 @@ fn main() {
         .add_plugin(InfiniteGridPlugin)
         .add_startup_system(setup)
         .add_system(user_actions)
-        .add_system(cube_movement)
+        .add_system(cube_orbit_movement)
         .run();
 }
 
@@ -52,6 +52,7 @@ impl MovableBall {
     const RADIUS:f32 = 0.5;
     const MAX_MOVEMENT_SPEED:f32 = 0.1;
     const INC_MOVEMENT_SPEED:f32 = 0.5; // times delta_seconds
+    const JUMP_SPEED:f32 = 5.0;
     const MIN_ORBIT_SPEED:f32 = 50.0;
     const MAX_ORBIT_SPEED:f32 = 300.0;
     const INC_ORBIT_SPEED:f32 = 5.0;
@@ -114,13 +115,9 @@ fn setup(
              }, 
              MovableBall::default(),
         ))
-        .insert(ExternalForce {
-            force: Vec3::ZERO,
-            torque: Vec3::ZERO,
-        })
-        .insert(ExternalImpulse {
-            impulse: Vec3::ZERO,
-            torque_impulse: Vec3::ZERO,
+        .insert(Velocity {
+            linvel: Vec3::ZERO,
+            angvel: Vec3::ZERO,
         })
         .insert(Collider::ball(MovableBall::RADIUS))
         .insert(ColliderDebugColor(Color::WHITE))
@@ -175,10 +172,13 @@ fn user_actions(
     time: Res<Time>,
     mut ev_motion: EventReader<MouseMotion>,
     res_buttons:  Res<Input<MouseButton>>,
-    mut ball_query: Query<(&mut MovableBall, &mut Transform, &mut ExternalImpulse), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
+    mut ball_query: Query<(&mut MovableBall, &mut Transform, &mut Velocity), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
 ) {
-    let (mut ball, mut ball_transform, mut ext_impulse) = ball_query.single_mut();
+    let (mut ball, mut ball_transform, mut velocity) = ball_query.single_mut();
     
+    //println!("{:?}", ball_transform.translation);
+    println!("{:?}", velocity.linvel);
+
     //
     // input based movement, but only when touching ground
     if ball_transform.translation.y <= MovableBall::RADIUS {
@@ -205,11 +205,11 @@ fn user_actions(
         } else {
             ball.velocity.slowdown(time.delta_seconds());
         }
-        //println!("{:?}", ball.velocity);
 
         if input.pressed(KeyCode::Space) {
-            ext_impulse.impulse += Vec3::new(0.0, 2.0, 0.0);
-        }
+            // set vertical velocity to fixed jump speed
+            velocity.linvel.y = MovableBall::JUMP_SPEED;
+    }
     } else {
         // airborne... current movement is locked
     }
@@ -235,7 +235,7 @@ fn user_actions(
 }
 
 
-fn cube_movement(
+fn cube_orbit_movement(
     time: Res<Time>,
     mut cube_query: Query<&mut Transform, With<MovableCube>>,
     ball_query: Query<&MovableBall, (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
