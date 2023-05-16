@@ -201,11 +201,16 @@ fn user_actions(
     time: Res<Time>,
     mut ev_motion: EventReader<MouseMotion>,
     res_buttons:  Res<Input<MouseButton>>,
-    mut ball_query: Query<(&mut MovableBall, &mut Transform, &mut Velocity), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
+    mut ball_query: Query<(&mut MovableBall, &mut Transform, &mut Velocity), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>,
+    camera_query: Query<&Transform, With<CameraControl>>
 ) {
     let (mut ball, mut ball_transform, mut velocity) = ball_query.single_mut();
+    let camera_transform = camera_query.single();
+    let camera_rotation_misalignment = Vec3::Z.angle_between(Vec3::new( 
+            camera_transform.translation.x, 0.0, camera_transform.translation.z 
+        ));
     
-    println!("LOC:{} - VEL:{} - BVEL:{}", format_vec3f(ball_transform.translation), format_vec3f(velocity.linvel), format_vec3f(*ball.velocity.current_velocity()));
+    println!("LOC:{} - VEL:{} - ROT:{} - Err:{}", format_vec3f(ball_transform.translation), format_vec3f(velocity.linvel), format_vec3f(ball_transform.rotation.xyz()), camera_rotation_misalignment);
 
     //
     // input based movement, but only when touching ground
@@ -229,6 +234,7 @@ fn user_actions(
             let ball_rotation = ball_transform.rotation;
             let mut movement = Transform::from_translation(direction);
             movement.rotate_around(Vec3::ZERO, ball_rotation);
+            movement.rotate_around(Vec3::ZERO, Quat::from_rotation_y(0.5*camera_rotation_misalignment));
             ball.velocity.add_velocity(time.delta_seconds(), movement.translation);
         } else {
             ball.velocity.slowdown(time.delta_seconds());
