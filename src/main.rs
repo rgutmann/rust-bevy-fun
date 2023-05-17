@@ -1,11 +1,9 @@
 use std::f32::consts::TAU;
-use image::DynamicImage;
-use image::io::Reader as ImageReader;
 use bevy::input::mouse::{MouseMotion, MouseButton};
 use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
 use bevy_infinite_grid::{InfiniteGridPlugin, InfiniteGridBundle, InfiniteGrid};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
-use mesh::{create_mesh, generate_noisemap};
+use mesh::{create_mesh, load_elevation_map};
 use rand::prelude::*;
 use bevy::prelude::*;
 use bevy::diagnostic::LogDiagnosticsPlugin;
@@ -121,29 +119,30 @@ fn setup(
         .insert(Collider::cuboid(plane_size/2.0, 0.05, plane_size/2.0))
         .id();
     
-    //let elevation_map: Handle<Image> = asset_server.load("assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.jpg").into();
-    //let elevation_map: Handle<Image> = asset_server.load("fbm.png").into();
-    /* TODO:
-    let dyn_image = ImageReader::open("assets/fbm.png").unwrap().decode().unwrap();
-    let gray_image = dyn_image.as_luma8().unwrap();
-    println!("image loaded with dimension: {:?}", gray_image.dimensions());
-    */ 
-
     // terrain
     let extent: f64 = plane_size as f64;
     let intensity = 2.0;
-    let width: usize = 512;
-    let depth: usize = 512;
-    let frequency = 0.1;
-    let lacunarity = 2.0;
-    let octaves = 6;
-    let create_file = true;
-    let noisemap = generate_noisemap(extent, width, depth, frequency, lacunarity, octaves, create_file);
-    let mesh = create_mesh(extent, width, depth, noisemap, intensity);
+
+    //let elevation_map: Handle<Image> = asset_server.load("assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.jpg").into();
+    //let elevation_map: Handle<Image> = asset_server.load("fbm.png").into();
+    
+    let map = load_elevation_map( "assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.jpg", 4.0);
+    //let map = load_elevation_map( "example_images/fbm.png", 2.0);
+    let (width, depth) = map.size();
+
+    // let width: usize = 512;
+    // let depth: usize = 512;
+    // let frequency = 0.1;
+    // let lacunarity = 2.0;
+    // let octaves = 6;
+    // let create_file = true;
+    // let noisemap = generate_noisemap(extent, width, depth, frequency, lacunarity, octaves, create_file);
+
+    let mesh = create_mesh(extent, width, depth, map, intensity);
     commands.spawn(PbrBundle {
             mesh: meshes.add(mesh),
             material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-            transform: Transform::from_xyz(0.0, 0.3, 0.0),
+            transform: Transform::from_xyz(0.0, -5., 0.0),
             ..Default::default()
         })
         .insert(Name::new("Terrain"))
