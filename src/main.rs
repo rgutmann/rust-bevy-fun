@@ -1,7 +1,6 @@
 use std::f32::consts::TAU;
 use bevy::input::mouse::{MouseMotion, MouseButton};
-use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
-use bevy::render::texture::ImageTextureLoader;
+//use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
 use bevy_infinite_grid::{InfiniteGridPlugin, InfiniteGridBundle, InfiniteGrid};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
 use mesh::{create_mesh, load_elevation_map};
@@ -13,7 +12,7 @@ use bevy_rapier3d::prelude::*;
 //use bevy::window::{CursorGrabMode, Cursor};
 //use bevy_rapier3d::render::RapierDebugRenderPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use helper::{ SimpleTween, VelocityTween, format_vec3f };
+use helper::{ SimpleTween, VelocityTween };
 
 mod helper;
 mod mesh;
@@ -39,7 +38,7 @@ fn main() {
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(InfiniteGridPlugin)
-        .add_plugin(WireframePlugin)
+        //.add_plugin(WireframePlugin)
         .add_startup_system(setup)
         .add_plugin(WorldInspectorPlugin::new())
         .add_system(user_actions)

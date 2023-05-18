@@ -9,10 +9,10 @@ pub struct ElevationMap {
     map: Vec<f64>,
 }
 
-// TODO:
+///
 impl ElevationMap {
 
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn _new(width: usize, height: usize) -> Self {
         Self {
             size: (width, height),
             map: vec![0.0; width * height],
@@ -31,7 +31,7 @@ impl ElevationMap {
         self.size
     }
 
-    pub fn set_value(&mut self, x: usize, y: usize, value: f64) {
+    pub fn _set_value(&mut self, x: usize, y: usize, value: f64) {
         let (width, height) = self.size;
 
         if x < width && y < height {
@@ -70,7 +70,7 @@ pub fn load_elevation_map(filename: &str, max_height: f64) -> ElevationMap {
 
 
 /// 
-pub fn generate_noisemap(extent: f64, width: usize, depth: usize, frequency: f64, lacunarity: f64, octaves: usize, create_file: bool) -> NoiseMap {
+pub fn _generate_noisemap(extent: f64, width: usize, depth: usize, frequency: f64, lacunarity: f64, octaves: usize, create_file: bool) -> NoiseMap {
     let mut fbm = Fbm::<Perlin>::default();
     fbm.frequency = frequency;
     fbm.lacunarity = lacunarity;
@@ -105,8 +105,6 @@ pub fn create_mesh(extent: f64, width: usize, depth: usize, map: ElevationMap, i
     let mut normals: Vec<[f32; 3]> = Vec::with_capacity(vertices_count);
     let mut uvs: Vec<[f32; 2]> = Vec::with_capacity(vertices_count);
 
-    let mut min_height = f32::MAX;
-    let mut max_height = f32::MIN;
     for d in 0..=depth {
         for w in 0..=width {
             let (w_f32, d_f32) = (w as f32, d as f32);
@@ -119,14 +117,8 @@ pub fn create_mesh(extent: f64, width: usize, depth: usize, map: ElevationMap, i
             positions.push(pos);
             normals.push([0.0, 1.0, 0.0]);
             uvs.push([w_f32 / width_f32, d_f32 / depth_f32]);
-
-            // TODO: remove when not needed anymore
-            let height = map.get_value(w, d) as f32;
-            min_height = min_height.min(height);
-            max_height = max_height.max(height);
         }
     }
-    println!("Terrain MIN height: {} - MAX height: {}", min_height, max_height);
 
     // Defining triangles.
     let mut triangles: Vec<u32> = Vec::with_capacity(triangle_count);
