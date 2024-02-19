@@ -1,6 +1,7 @@
 use std::f32::consts::TAU;
 use bevy::input::mouse::{MouseMotion, MouseButton};
 use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
+use bevy::render::texture::ImageTextureLoader;
 use bevy_infinite_grid::{InfiniteGridPlugin, InfiniteGridBundle, InfiniteGrid};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
 use mesh::{create_mesh, load_elevation_map};
@@ -63,6 +64,7 @@ impl MovableBall {
     const INC_MOVEMENT_SPEED:f32 = 20.0; // times delta_seconds
     const SHIFT_MOVEMENT_MULTIPLIER:f32 = 3.0;
     const JUMP_SPEED:f32 = 5.0;
+    const FLY_MODE:bool = true;
     const MIN_ORBIT_SPEED:f32 = 50.0;
     const MAX_ORBIT_SPEED:f32 = 300.0;
     const INC_ORBIT_SPEED:f32 = 5.0;
@@ -123,7 +125,7 @@ fn setup(
     let extent: f64 = plane_size as f64;
     let intensity = 2.0;
 
-    //let elevation_map: Handle<Image> = asset_server.load("assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.jpg").into();
+    let color_map: Handle<Image> = asset_server.load("dogwaffle-terrain3/dogwaffle-terrain3-colr.png").into();
     //let elevation_map: Handle<Image> = asset_server.load("fbm.png").into();
     
     let map = load_elevation_map( "assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.jpg", 4.0);
@@ -137,17 +139,17 @@ fn setup(
     // let octaves = 6;
     // let create_file = true;
     // let noisemap = generate_noisemap(extent, width, depth, frequency, lacunarity, octaves, create_file);
-
+    
     let mesh = create_mesh(extent, width, depth, map, intensity);
     commands.spawn(PbrBundle {
             mesh: meshes.add(mesh),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-            transform: Transform::from_xyz(0.0, -5., 0.0),
+            material: materials.add(color_map.into()),
+            transform: Transform::from_xyz(0.0, -0., 0.0),
             ..Default::default()
         })
-        .insert(Name::new("Terrain"))
         //.insert(Collider::from_bevy_mesh(&mesh,ComputedColliderShape::TriMesh))
-        .insert(Wireframe);
+        //.insert(Wireframe)
+        .insert(Name::new("Terrain"));
 
 
     // Create the bouncing ball
@@ -166,6 +168,7 @@ fn setup(
             linvel: Vec3::ZERO,
             angvel: Vec3::ZERO,
         })
+        .insert( if !MovableBall::FLY_MODE {GravityScale(1.0)} else {GravityScale(0.0)} )
         .insert(LockedAxes::ROTATION_LOCKED_X | LockedAxes::ROTATION_LOCKED_Z)
         .insert(Collider::ball(MovableBall::RADIUS))
         .insert(ColliderDebugColor(Color::WHITE))
@@ -242,7 +245,7 @@ fn user_actions(
 
     //
     // input based movement, but only when touching ground
-    if ball_transform.translation.y <= MovableBall::RADIUS {
+    if MovableBall::FLY_MODE || ball_transform.translation.y <= MovableBall::RADIUS {
 
         // accumulate key-based movement
         let mut direction = Vec3::ZERO;
@@ -268,10 +271,19 @@ fn user_actions(
             ball.velocity.slowdown(time.delta_seconds());
         }
 
-        if input.pressed(KeyCode::Space) {
-            // set vertical velocity to fixed jump speed
-            velocity.linvel.y = MovableBall::JUMP_SPEED;
-    }
+        if !MovableBall::FLY_MODE {
+            if input.pressed(KeyCode::Space) {
+                velocity.linvel.y = MovableBall::JUMP_SPEED;
+            }
+        } else {
+            if input.pressed(KeyCode::Space) {
+                velocity.linvel.y = MovableBall::JUMP_SPEED;
+            } else if input.pressed(KeyCode::C) {
+                velocity.linvel.y = -MovableBall::JUMP_SPEED;
+            } else { 
+                velocity.linvel.y = 0.
+            }
+        }
     } else {
         // airborne... current movement is locked
     }
