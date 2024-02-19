@@ -60,7 +60,7 @@ impl MovableBall {
     const RADIUS:f32 = 0.5;
     const INITIAL_POSITION:Transform = Transform::from_xyz(40.0, 8.0, 30.0);
     const DEATH_HEIGHT:f32 = -10.0;
-    const MAX_MOVEMENT_SPEED:f32 = 4.0;
+    const MAX_MOVEMENT_SPEED:f32 = 12.0;
     const INC_MOVEMENT_SPEED:f32 = 20.0; // times delta_seconds
     const SHIFT_MOVEMENT_MULTIPLIER:f32 = 3.0;
     const JUMP_SPEED:f32 = 5.0;
@@ -102,31 +102,31 @@ fn setup(
 
     // plane
     let plane_size = 200.0;
-    let _plane_entity = commands.spawn(PbrBundle {
-            mesh: meshes.add(shape::Box::new(plane_size, 0.1, plane_size).into()),
-            material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
-            transform: Transform::from_xyz(0.0, -0.1, 0.0),
-            ..default()
-        })
-        .insert(Name::new("Plane"))
-        .insert(Collider::cuboid(plane_size/2.0, 0.05, plane_size/2.0))
-        .id();
+    // let _plane_entity = commands.spawn(PbrBundle {
+    //         mesh: meshes.add(shape::Box::new(plane_size, 0.1, plane_size).into()),
+    //         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+    //         transform: Transform::from_xyz(0.0, -0.1, 0.0),
+    //         ..default()
+    //     })
+    //     .insert(Name::new("Plane"))
+    //     .insert(Collider::cuboid(plane_size/2.0, 0.05, plane_size/2.0))
+    //     .id();
     
     // terrain
     let extent: f64 = plane_size as f64;
-    let intensity = 3.0;
-/* 
-    // randomly generated noisemap
-    let width: usize = 512;
-    let depth: usize = 512;
-    let frequency = 0.1;
-    let lacunarity = 2.0;
-    let octaves = 6;
-    let create_file = true;
-    let noisemap = generate_noisemap(extent, width, depth, frequency, lacunarity, octaves, create_file);
-    let elevation_map: Handle<Image> = asset_server.load("fbm.png").into();
-    let map = load_elevation_map( "example_images/fbm.png", 2.0);
- */    
+    let intensity = 4.0;
+
+    // // randomly generated noisemap
+    // let width: usize = 512;
+    // let depth: usize = 512;
+    // let frequency = 0.1;
+    // let lacunarity = 2.0;
+    // let octaves = 6;
+    // let create_file = true;
+    // let noisemap = generate_noisemap(extent, width, depth, frequency, lacunarity, octaves, create_file);
+    // let elevation_map: Handle<Image> = asset_server.load("fbm.png").into();
+    // let map = load_elevation_map( "example_images/fbm.png", 2.0);
+
     // staigermanus dogwaffle terrain3 map https://www.renderosity.com/freestuff/items/77673
     let color_map: Handle<Image> = asset_server.load("dogwaffle-terrain3/dogwaffle-terrain3-colr.png").into();
     let map = load_elevation_map( "assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.png", 4.0);
