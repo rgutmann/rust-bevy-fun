@@ -1,9 +1,8 @@
 use std::f32::consts::TAU;
 use bevy::input::mouse::{MouseMotion, MouseButton};
-use bevy_egui::EguiContexts;
-use bevy_egui::egui;
 //use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
+use debug::DebugTextPlugin;
 use mesh::{create_mesh, load_elevation_map};
 use rand::prelude::*;
 use bevy::prelude::*;
@@ -15,10 +14,9 @@ use bevy_rapier3d::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use helper::{ SimpleTween, VelocityTween };
 
-use crate::helper::format_vec3f;
-
 mod helper;
 mod mesh;
+mod debug;
 
 fn main() {
     App::new()
@@ -60,7 +58,7 @@ struct MovableBall {
 }
 impl MovableBall {
     const RADIUS:f32 = 0.5;
-    const INITIAL_POSITION:Transform = Transform::from_xyz(0.0, 8.0, 0.0);
+    const INITIAL_POSITION:Transform = Transform::from_xyz(40.0, 8.0, 30.0);
     const DEATH_HEIGHT:f32 = -10.0;
     const MAX_MOVEMENT_SPEED:f32 = 4.0;
     const INC_MOVEMENT_SPEED:f32 = 20.0; // times delta_seconds
@@ -103,7 +101,7 @@ fn setup(
 ) {
 
     // plane
-    let plane_size = 100.0;
+    let plane_size = 200.0;
     let _plane_entity = commands.spawn(PbrBundle {
             mesh: meshes.add(shape::Box::new(plane_size, 0.1, plane_size).into()),
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
@@ -116,7 +114,7 @@ fn setup(
     
     // terrain
     let extent: f64 = plane_size as f64;
-    let intensity = 2.0;
+    let intensity = 3.0;
 /* 
     // randomly generated noisemap
     let width: usize = 512;
@@ -215,47 +213,6 @@ fn setup(
         .id();
     commands.entity(ball_entity).push_children(&[camera_entity]);
 
-}
-
-pub struct DebugTextPlugin;
-
-impl Plugin for DebugTextPlugin {
-    fn build(&self, app: &mut App) {
-        app
-            .init_resource::<DebugTextState>()
-            .add_systems(Update, debug_ui_system);
-    }
-}
-
-#[derive(Resource)]
-pub struct DebugTextState {
-    worldinspector: bool,
-}
-
-impl Default for DebugTextState {
-    fn default() -> Self {
-        Self {
-            worldinspector: false,
-        }
-    }
-}
-
-// https://whoisryosuke.com/blog/2023/getting-started-with-egui-in-rust
-fn debug_ui_system(mut contexts: EguiContexts,
-    mut text_state: ResMut<DebugTextState>,
-    ball_query: Query<(&Transform, &Velocity), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>,) {
-    egui::Window::new("Debug output").show(contexts.ctx_mut(), |ui| {
-        let (ball_transform, velocity) = ball_query.single();
-        ui.horizontal(|ui| {
-            ui.label(format!("LOC:{}", format_vec3f(ball_transform.translation)));
-            ui.label(format!("VEL:{}", format_vec3f(velocity.linvel)));
-            ui.label(format!("ROT:{}", format_vec3f(ball_transform.rotation.xyz())));
-            });
-        
-        ui.separator();
-        ui.checkbox(&mut text_state.worldinspector, "WorldInspector")
-        // TODO: enable/disable worldinspector
-    });
 }
 
 fn user_actions(
