@@ -42,6 +42,7 @@ fn main() {
         .add_systems(Startup, setup)
         .add_plugins(DebugTextPlugin)
         .add_plugins(WorldInspectorPlugin::new())
+        .insert_resource(Terrain::default())
         .add_systems(Update, user_actions)
         .add_systems(Update, cube_orbit_movement)
         .run();
@@ -58,7 +59,7 @@ struct MovableBall {
 }
 impl MovableBall {
     const RADIUS:f32 = 0.5;
-    const INITIAL_POSITION:Transform = Transform::from_xyz(40.0, 8.0, 30.0);
+    const INITIAL_POSITION:Transform = Transform::from_xyz(40.0, 10.0, 30.0);
     const DEATH_HEIGHT:f32 = -10.0;
     const MAX_MOVEMENT_SPEED:f32 = 12.0;
     const INC_MOVEMENT_SPEED:f32 = 20.0; // times delta_seconds
@@ -88,6 +89,28 @@ impl Default for MovableBall {
     }
 }
 
+#[derive(Resource)]
+struct Terrain {
+    size: f64,
+    intensity: f32,
+}
+impl Terrain {
+    const DEFAULT_SIZE:f64 = 200.0;
+    const DEFAULT_INTENSITY:f32 = 4.0;
+    fn _reset(&mut self) {
+        self.size = Terrain::DEFAULT_SIZE;
+        self.intensity = Terrain::DEFAULT_INTENSITY;
+    }
+}
+impl Default for Terrain {
+    fn default() -> Self {
+        Terrain { 
+            size: Terrain::DEFAULT_SIZE,
+            intensity: Terrain::DEFAULT_INTENSITY,
+        }
+    }
+}
+
 #[derive(Component)]
 struct CameraControl;
 
@@ -97,24 +120,22 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
+    terrain: Res<Terrain>,
     //seed: Res<Seed>,
 ) {
-
-    // plane
-    let plane_size = 200.0;
+    
+    // // plane
     // let _plane_entity = commands.spawn(PbrBundle {
-    //         mesh: meshes.add(shape::Box::new(plane_size, 0.1, plane_size).into()),
+    //         mesh: meshes.add(shape::Box::new(terrain.size as f32, 0.1, terrain.size as f32).into()),
     //         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
     //         transform: Transform::from_xyz(0.0, -0.1, 0.0),
     //         ..default()
     //     })
     //     .insert(Name::new("Plane"))
-    //     .insert(Collider::cuboid(plane_size/2.0, 0.05, plane_size/2.0))
+    //     .insert(Collider::cuboid(terrain.size as f32/2.0, 0.05, terrain.size as f32/2.0))
     //     .id();
     
     // terrain
-    let extent: f64 = plane_size as f64;
-    let intensity = 4.0;
 
     // // randomly generated noisemap
     // let width: usize = 512;
@@ -123,7 +144,7 @@ fn setup(
     // let lacunarity = 2.0;
     // let octaves = 6;
     // let create_file = true;
-    // let noisemap = generate_noisemap(extent, width, depth, frequency, lacunarity, octaves, create_file);
+    // let noisemap = generate_noisemap(terrain.size, width, depth, frequency, lacunarity, octaves, create_file);
     // let elevation_map: Handle<Image> = asset_server.load("fbm.png").into();
     // let map = load_elevation_map( "example_images/fbm.png", 2.0);
 
@@ -132,7 +153,7 @@ fn setup(
     let map = load_elevation_map( "assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.png", 4.0);
     let (width, depth) = map.size();
 
-    let mesh = create_mesh(extent, width, depth, map, intensity);
+    let mesh = create_mesh(terrain.size, width, depth, map, terrain.intensity);
     commands.spawn(PbrBundle {
             mesh: meshes.add(mesh),
             material: materials.add(color_map.into()),
@@ -167,7 +188,7 @@ fn setup(
         .insert(Restitution::coefficient(0.7))
         .id();
 
-    // Create cubes as childs
+    // Create cubes as childs of the ball
     let cube_count = 50;
     let mut rng = rand::thread_rng();
     for i in 1..=cube_count {
@@ -186,8 +207,7 @@ fn setup(
         commands.entity(ball_entity).push_children(&[cube]);
     }
 
-
-    // light
+    // Create light and attach to ball
     let light_entity = commands.spawn(PointLightBundle {
         point_light: PointLight {
             intensity: 10000.0,
