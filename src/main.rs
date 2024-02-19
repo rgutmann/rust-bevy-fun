@@ -3,7 +3,6 @@ use bevy::input::mouse::{MouseMotion, MouseButton};
 // use bevy_egui::EguiContexts;
 // use bevy_egui::egui;
 //use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
-//use bevy_infinite_grid::{InfiniteGridPlugin, InfiniteGridBundle, InfiniteGrid};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
 use mesh::{create_mesh, load_elevation_map};
 use rand::prelude::*;
@@ -101,15 +100,6 @@ fn setup(
     asset_server: Res<AssetServer>,
     //seed: Res<Seed>,
 ) {
-    // infinite grid
-    // commands.spawn(InfiniteGridBundle {
-    //     grid: InfiniteGrid {
-    //         // shadow_color: None,
-    //         ..Default::default()
-    //     },
-    //     ..Default::default()
-    //     })
-    //     .insert(Name::new("InfiniteGrid"));
 
     // plane
     let plane_size = 100.0;
