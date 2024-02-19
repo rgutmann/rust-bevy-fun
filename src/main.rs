@@ -57,8 +57,8 @@ struct MovableBall {
 }
 impl MovableBall {
     const RADIUS:f32 = 0.5;
-    const MAX_MOVEMENT_SPEED:f32 = 0.1;
-    const INC_MOVEMENT_SPEED:f32 = 0.5; // times delta_seconds
+    const MAX_MOVEMENT_SPEED:f32 = 4.0;
+    const INC_MOVEMENT_SPEED:f32 = 20.0; // times delta_seconds
     const JUMP_SPEED:f32 = 5.0;
     const MIN_ORBIT_SPEED:f32 = 50.0;
     const MAX_ORBIT_SPEED:f32 = 300.0;
@@ -147,6 +147,7 @@ fn setup(
             linvel: Vec3::ZERO,
             angvel: Vec3::ZERO,
         })
+        .insert(LockedAxes::ROTATION_LOCKED_X | LockedAxes::ROTATION_LOCKED_Z)
         .insert(Collider::ball(MovableBall::RADIUS))
         .insert(ColliderDebugColor(Color::WHITE))
         .insert(Restitution::coefficient(0.7))
@@ -240,7 +241,9 @@ fn user_actions(
     } else {
         // airborne... current movement is locked
     }
-    ball_transform.translation += *ball.velocity.current_velocity();
+    // apply horizontal velocity, but don't change vertical velocity
+    let cur_velicity = *ball.velocity.current_velocity() + Vec3::new(0.0, velocity.linvel.y, 0.0);
+    velocity.linvel = cur_velicity;
 
     //
     // ball rotation
