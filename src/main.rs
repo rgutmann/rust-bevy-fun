@@ -33,20 +33,21 @@ struct MovableCube;
 
 #[derive(Component,Debug)]
 struct MovableBall {
-    movement_speed:f32,
-    min_orbit_speed:f32,
+    cur_movement:Vec3,
     cur_orbit_speed:f32,
-    max_orbit_speed:f32,
-    inc_orbit_speed:f32,
+}
+impl MovableBall {
+    const RADIUS:f32 = 0.5;
+    const MOVEMENT_SPEED:f32 = 2.0;
+    const MIN_ORBIT_SPEED:f32 = 50.0;
+    const MAX_ORBIT_SPEED:f32 = 300.0;
+    const INC_ORBIT_SPEED:f32 = 3.0;
 }
 impl Default for MovableBall {
     fn default() -> Self {
         MovableBall { 
-            movement_speed: 2.0,
-            min_orbit_speed: 50.0, 
-            cur_orbit_speed: 50.0, 
-            max_orbit_speed: 200.0,
-            inc_orbit_speed: 2.0,
+            cur_movement: Vec3::ZERO,
+            cur_orbit_speed: MovableBall::MIN_ORBIT_SPEED, 
         }
     }
 }
@@ -61,7 +62,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // plane
-    let plane_size = 10.0;
+    let plane_size = 20.0;
     commands.spawn(PbrBundle {
             mesh: meshes.add(shape::Box::new(plane_size, 0.1, plane_size).into()),
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
@@ -75,14 +76,22 @@ fn setup(
     let ball_entity = commands
         .spawn(RigidBody::Dynamic)
         .insert((PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::UVSphere { radius: 0.5, sectors: 36, stacks: 36 })),
+                mesh: meshes.add(Mesh::from(shape::UVSphere { radius: MovableBall::RADIUS, sectors: 36, stacks: 36 })),
                 material: materials.add(Color::rgb(0.8, 0.8, 0.2).into()),
                 transform: Transform::from_xyz(0.0, 4.0, 0.0),
                 ..default()
              }, 
              MovableBall::default(),
         ))
-        .insert(Collider::ball(0.5))
+        .insert(ExternalForce {
+            force: Vec3::ZERO,
+            torque: Vec3::ZERO,
+        })
+        .insert(ExternalImpulse {
+            impulse: Vec3::ZERO,
+            torque_impulse: Vec3::ZERO,
+        })
+        .insert(Collider::ball(MovableBall::RADIUS))
         .insert(ColliderDebugColor(Color::WHITE))
         .insert(Restitution::coefficient(0.7))
         .id();
@@ -135,32 +144,43 @@ fn user_actions(
     time: Res<Time>,
     mut ev_motion: EventReader<MouseMotion>,
     res_buttons:  Res<Input<MouseButton>>,
-    mut ball_query: Query<(&mut MovableBall, &mut Transform), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
+    mut ball_query: Query<(&mut MovableBall, &mut Transform, &mut ExternalImpulse), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
 ) {
-    let (mut ball, mut ball_transform) = ball_query.single_mut();
-    let player_speed = ball.movement_speed;
-
+    let (mut ball, mut ball_transform, mut ext_impulse) = ball_query.single_mut();
+    let movement_speed = MovableBall::MOVEMENT_SPEED;
+    
     //
-    // ball movement
-    // accumulate key-based movement
-    let mut direction = Vec3::ZERO;
-    if input.pressed(KeyCode::W) {
-        direction.z -= player_speed;
+    // input based movement, but only when touching ground
+    if ball_transform.translation.y <= MovableBall::RADIUS {
+
+        // accumulate key-based movement
+        let mut direction = Vec3::ZERO;
+        if input.pressed(KeyCode::W) {
+            direction.z -= movement_speed;
+        }
+        if input.pressed(KeyCode::S) {
+            direction.z += movement_speed;
+        }
+        if input.pressed(KeyCode::A) {
+            direction.x -= movement_speed;
+        }
+        if input.pressed(KeyCode::D) {
+            direction.x += movement_speed;
+        }
+        println!("{:?}", ball_transform);
+        //let mut ball_transform = ball_query.single_mut();
+        let ball_rotation = ball_transform.rotation;
+        let mut movement = Transform::from_translation(time.delta_seconds() * 2.0 * direction);
+        movement.rotate_around(Vec3::ZERO, ball_rotation);
+        ball.cur_movement = movement.translation;
+
+        if input.pressed(KeyCode::Space) {
+            ext_impulse.impulse += Vec3::new(0.0, 2.0, 0.0);
+        }
+    } else {
+        // airborne... current movement is locked
     }
-    if input.pressed(KeyCode::S) {
-        direction.z += player_speed;
-    }
-    if input.pressed(KeyCode::A) {
-        direction.x -= player_speed;
-    }
-    if input.pressed(KeyCode::D) {
-        direction.x += player_speed;
-    }
-    //let mut ball_transform = ball_query.single_mut();
-    let ball_rotation = ball_transform.rotation;
-    let mut movement = Transform::from_translation(time.delta_seconds() * 2.0 * direction);
-    movement.rotate_around(Vec3::ZERO, ball_rotation);
-    ball_transform.translation += movement.translation;
+    ball_transform.translation += ball.cur_movement;
 
     //
     // ball rotation
@@ -175,9 +195,9 @@ fn user_actions(
     //
     // cubes acceleration
     if res_buttons.pressed(MouseButton::Left) {
-        ball.cur_orbit_speed = (ball.cur_orbit_speed + ball.inc_orbit_speed).min(ball.max_orbit_speed);
+        ball.cur_orbit_speed = (ball.cur_orbit_speed + MovableBall::INC_ORBIT_SPEED).min(MovableBall::MAX_ORBIT_SPEED);
     } else {
-        ball.cur_orbit_speed = (ball.cur_orbit_speed - ball.inc_orbit_speed).max(ball.min_orbit_speed);
+        ball.cur_orbit_speed = (ball.cur_orbit_speed - MovableBall::INC_ORBIT_SPEED).max(MovableBall::MIN_ORBIT_SPEED);
     }
 }
 
