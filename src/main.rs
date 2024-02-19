@@ -1,12 +1,12 @@
 use std::f32::consts::TAU;
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
-use bevy_rapier3d::render::RapierDebugRenderPlugin;
 use rand::prelude::*;
 use bevy::prelude::*;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy_rapier3d::prelude::*;
 use smooth_bevy_cameras::LookTransformPlugin;
 use smooth_bevy_cameras::controllers::orbit::{OrbitCameraPlugin, OrbitCameraBundle, OrbitCameraController};
+//use bevy_rapier3d::render::RapierDebugRenderPlugin;
 
 
 fn main() {
@@ -24,14 +24,18 @@ fn main() {
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_plugin(RapierDebugRenderPlugin::default())
+        //.add_plugin(RapierDebugRenderPlugin::default())
         .add_startup_system(setup)
+        .add_system(ball_movement)
         .add_system(cube_movement)
         .run();
 }
 
 #[derive(Component)]
 struct MovableCube;
+
+#[derive(Component)]
+struct MovableBall;
 
 #[derive(Component)]
 struct CameraControl;
@@ -72,15 +76,16 @@ fn setup(
     /* Create the bouncing ball. */
     commands
         .spawn(RigidBody::Dynamic)
-        .insert(PbrBundle {
+        .insert((PbrBundle {
             mesh: meshes.add(Mesh::from(shape::UVSphere { radius: 0.5, sectors: 36, stacks: 36 })),
             material: materials.add(Color::rgb(0.8, 0.8, 0.2).into()),
             transform: Transform::from_xyz(0.0, 4.0, 0.0),
             ..default()
-        })
+        }, MovableBall))
         .insert(Collider::ball(0.5))
         .insert(ColliderDebugColor(Color::WHITE))
-        .insert(Restitution::coefficient(0.7));
+        .insert(Restitution::coefficient(0.7))
+        ;
 
     // light
     commands.spawn(PointLightBundle {
@@ -103,10 +108,10 @@ fn setup(
 }
 
 
-fn cube_movement(
+fn ball_movement(
     input: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut query: Query<&mut Transform, With<MovableCube>>,
+    mut query: Query<&mut Transform, With<MovableBall>>,
 ) {
     // determine key-based movement
     let mut direction = Vec3::ZERO;
@@ -124,9 +129,19 @@ fn cube_movement(
     }
 
     for mut transform in &mut query {
-        let gpos_start = transform.translation;
         // key-based movement
         transform.translation += time.delta_seconds() * 2.0 * direction;
+    }
+}
+
+
+fn cube_movement(
+    input: Res<Input<KeyCode>>,
+    time: Res<Time>,
+    mut query: Query<&mut Transform, With<MovableCube>>,
+) {
+    for mut transform in &mut query {
+        let gpos_start = transform.translation;
         // rotate around center
         transform.rotate_around(Vec3::ZERO, Quat::from_rotation_y(time.delta_seconds() * 0.5));
         let gpos_end = transform.translation;
