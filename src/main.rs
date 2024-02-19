@@ -1,5 +1,3 @@
-//! A simple 3D scene with light shining over a cube sitting on a plane.
-
 use std::f32::consts::TAU;
 use bevy::prelude::*;
 
@@ -8,6 +6,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup)
         .add_system(movement)
+        .add_system(bevy::window::close_on_esc)
         .run();
 }
 
@@ -27,7 +26,7 @@ fn setup(
         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
         ..default()
     });
-    // cubes
+    // cubes in a row
     for i in 1..11 {
         commands.spawn((PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 0.12 })),
@@ -62,10 +61,10 @@ fn movement(
     for mut transform in &mut query {
         let mut direction = Vec3::ZERO;
         if input.pressed(KeyCode::Up) {
-            direction.y += 1.0;
+            direction.z -= 1.0;
         }
         if input.pressed(KeyCode::Down) {
-            direction.y -= 1.0;
+            direction.z += 1.0;
         }
         if input.pressed(KeyCode::Left) {
             direction.x -= 1.0;
@@ -81,7 +80,7 @@ fn movement(
         transform.rotate_around(Vec3::new(0f32,0f32,0f32), Quat::from_rotation_y(time.delta_seconds() * 0.5));
         let gpos_end = transform.translation;
 
-        // TODO: rotate object in direction of movement
+        // rotate object in direction of movement
         let movement = gpos_end - gpos_start;
         let stable_vec = Vec3::from_array([0.0,-1.0,0.0]);
         let rotation_vec = movement.cross(stable_vec);
