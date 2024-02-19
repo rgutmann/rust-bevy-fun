@@ -1,7 +1,7 @@
 use std::f32::consts::TAU;
 use bevy::input::mouse::{MouseMotion, MouseButton};
-// use bevy_egui::EguiContexts;
-// use bevy_egui::egui;
+use bevy_egui::EguiContexts;
+use bevy_egui::egui;
 //use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
 use mesh::{create_mesh, load_elevation_map};
@@ -38,11 +38,10 @@ fn main() {
         .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
-        //.add_plugins(InfiniteGridPlugin)
         //.add_plugin(WireframePlugin)
         .add_systems(Startup, setup)
         .add_plugins(WorldInspectorPlugin::new())
-        // .add_system(ui_system)
+        .add_systems(Update, ui_system)
         .add_systems(Update, user_actions)
         .add_systems(Update, cube_orbit_movement)
         .run();
@@ -214,11 +213,12 @@ fn setup(
 
 }
 
-// fn ui_system(mut contexts: EguiContexts) {
-//     egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
-//         ui.label("world");
-//     });
-// }
+fn ui_system(mut contexts: EguiContexts) {
+    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
+        ui.label("world");
+        // TODO: move debug text to egui window
+    });
+}
 
 fn user_actions(
     input: Res<Input<KeyCode>>,
@@ -296,7 +296,7 @@ fn user_actions(
     // ball rotation
     // accumulate "ball/camera" rotation from mouse movement
     let mut rotation_move = Vec2::ZERO;
-    for ev in ev_motion.iter() {
+    for ev in ev_motion.read() {
         rotation_move += ev.delta;
     }
     // rotate ball accordingly
