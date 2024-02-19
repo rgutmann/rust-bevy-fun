@@ -9,6 +9,7 @@ edition = "2021"
 bevy = { version = "0.10", features = ["dynamic_linking"] }
 bevy_rapier3d = "0.21"
 rand = "0.8"
+bevy_infinite_grid = { git = "https://github.com/ForesightMiningSoftwareCorporation/bevy_infinite_grid", branch = "main" }
 
 [workspace]
 resolver = "2" # Important! wgpu/Bevy needs this!

@@ -1,10 +1,12 @@
 use std::f32::consts::TAU;
 use bevy::input::mouse::{MouseMotion, MouseButton};
+use bevy_infinite_grid::{InfiniteGridPlugin, InfiniteGridBundle, InfiniteGrid};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
 use rand::prelude::*;
 use bevy::prelude::*;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy_rapier3d::prelude::*;
+use bevy::window::{CursorGrabMode, Cursor};
 //use bevy_rapier3d::render::RapierDebugRenderPlugin;
 use helper::{ SimpleTween, VelocityTween };
 
@@ -15,6 +17,12 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Cube-Mania!    ---> use WASD to move, mouse to rotate, left MB to power up, Space to jump, Esc to quit <---".to_string(),
+                cursor: { 
+                    let mut cursor = Cursor::default(); 
+                    cursor.visible = false; 
+                    cursor.grab_mode = CursorGrabMode::Locked;
+                    cursor 
+                },
                 ..default()
             }),
             ..default()
@@ -24,11 +32,13 @@ fn main() {
         //.add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugin(InfiniteGridPlugin)
         .add_startup_system(setup)
         .add_system(user_actions)
         .add_system(cube_movement)
         .run();
 }
+
 
 #[derive(Component)]
 struct MovableCube;
@@ -41,10 +51,10 @@ struct MovableBall {
 impl MovableBall {
     const RADIUS:f32 = 0.5;
     const MAX_MOVEMENT_SPEED:f32 = 0.1;
-    const INC_MOVEMENT_SPEED:f32 = 0.3; // times delta_seconds
+    const INC_MOVEMENT_SPEED:f32 = 0.5; // times delta_seconds
     const MIN_ORBIT_SPEED:f32 = 50.0;
     const MAX_ORBIT_SPEED:f32 = 300.0;
-    const INC_ORBIT_SPEED:f32 = 3.0;
+    const INC_ORBIT_SPEED:f32 = 5.0;
 }
 impl Default for MovableBall {
     fn default() -> Self {
@@ -75,7 +85,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // plane
-    let plane_size = 20.0;
+    let plane_size = 50.0;
     commands.spawn(PbrBundle {
             mesh: meshes.add(shape::Box::new(plane_size, 0.1, plane_size).into()),
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
@@ -83,7 +93,15 @@ fn setup(
             ..default()
         })
         .insert(Collider::cuboid(plane_size/2.0, 0.05, plane_size/2.0));
-
+    
+    // infinite grid
+    commands.spawn(InfiniteGridBundle {
+        grid: InfiniteGrid {
+            // shadow_color: None,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
 
     // Create the bouncing ball
     let ball_entity = commands
@@ -187,7 +205,7 @@ fn user_actions(
         } else {
             ball.velocity.slowdown(time.delta_seconds());
         }
-        println!("{:?}", ball.velocity);
+        //println!("{:?}", ball.velocity);
 
         if input.pressed(KeyCode::Space) {
             ext_impulse.impulse += Vec3::new(0.0, 2.0, 0.0);
