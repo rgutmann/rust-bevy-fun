@@ -1,5 +1,6 @@
 use std::f32::consts::TAU;
 use bevy::input::mouse::{MouseMotion, MouseButton};
+use bevy::ui;
 use bevy_egui::EguiContexts;
 use bevy_egui::egui;
 //use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
@@ -15,6 +16,8 @@ use bevy_rapier3d::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use helper::{ SimpleTween, VelocityTween };
 
+use crate::helper::format_vec3f;
+
 mod helper;
 mod mesh;
 
@@ -22,7 +25,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Cube-Mania!    ---> use WASD to move, mouse to rotate, left MB to power up, Space to jump, Esc to quit <---".to_string(),
+                title: "Cube-Mania!    ---> use WASD to move, mouse to rotate, left MB to power up, Space/C to elevate/dive, Esc to quit <---".to_string(),
                 // cursor: { 
                 //     let mut cursor = Cursor::default(); 
                 //     cursor.visible = false; 
@@ -40,8 +43,9 @@ fn main() {
         //.add_plugin(RapierDebugRenderPlugin::default())
         //.add_plugin(WireframePlugin)
         .add_systems(Startup, setup)
+        .add_plugins(DebugTextPlugin)
+        //.add_systems(Update, ui_system)
         .add_plugins(WorldInspectorPlugin::new())
-        .add_systems(Update, ui_system)
         .add_systems(Update, user_actions)
         .add_systems(Update, cube_orbit_movement)
         .run();
@@ -213,10 +217,44 @@ fn setup(
 
 }
 
-fn ui_system(mut contexts: EguiContexts) {
-    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
-        ui.label("world");
-        // TODO: move debug text to egui window
+pub struct DebugTextPlugin;
+
+impl Plugin for DebugTextPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .init_resource::<DebugTextState>()
+            .add_systems(Update, ui_system);
+    }
+}
+
+#[derive(Resource)]
+pub struct DebugTextState {
+    worldinspector: bool,
+}
+
+impl Default for DebugTextState {
+    fn default() -> Self {
+        Self {
+            worldinspector: false,
+        }
+    }
+}
+
+// https://whoisryosuke.com/blog/2023/getting-started-with-egui-in-rust
+fn ui_system(mut contexts: EguiContexts,
+    mut text_state: ResMut<DebugTextState>,
+    ball_query: Query<(&Transform, &Velocity), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>,) {
+    egui::Window::new("Debug output").show(contexts.ctx_mut(), |ui| {
+        let (ball_transform, velocity) = ball_query.single();
+        ui.horizontal(|ui| {
+            ui.label(format!("LOC:{}", format_vec3f(ball_transform.translation)));
+            ui.label(format!("VEL:{}", format_vec3f(velocity.linvel)));
+            ui.label(format!("ROT:{}", format_vec3f(ball_transform.rotation.xyz())));
+            });
+        
+        ui.separator();
+        ui.checkbox(&mut text_state.worldinspector, "WorldInspector")
+        // TODO: enable/disable worldinspector
     });
 }
 
@@ -233,9 +271,7 @@ fn user_actions(
     let camera_rotation_misalignment = Vec3::Z.angle_between(Vec3::new( 
             camera_transform.translation.x, 0.0, camera_transform.translation.z 
         ));
-    
-    // TODO: println!("LOC:{} - VEL:{} - ROT:{} - Err:{}", format_vec3f(ball_transform.translation), format_vec3f(velocity.linvel), format_vec3f(ball_transform.rotation.xyz()), camera_rotation_misalignment);
-    
+        
     if ball_transform.translation.y < MovableBall::DEATH_HEIGHT {
         ball_transform.translation = MovableBall::INITIAL_POSITION.translation;
     }
