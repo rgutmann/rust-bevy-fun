@@ -13,14 +13,13 @@ fn main() {
 #[derive(Component)]
 struct Movable;
 
-/// set up a simple 3D scene
+/// set up 3D scene
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // plane
-    println!("{:?}", Mesh::from(shape::Plane::from_size(5.0)));
     commands.spawn(PbrBundle {
         mesh: meshes.add(shape::Plane::from_size(5.0).into()),
         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
@@ -73,7 +72,7 @@ fn movement(
         direction.x += 1.0;
     }
 
-for mut transform in &mut query {
+    for mut transform in &mut query {
         let gpos_start = transform.translation;
         // key-based movement
         transform.translation += time.delta_seconds() * 2.0 * direction;
