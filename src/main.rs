@@ -1,7 +1,9 @@
 use std::f32::consts::TAU;
 use bevy::input::mouse::{MouseMotion, MouseButton};
+// use bevy_egui::EguiContexts;
+// use bevy_egui::egui;
 //use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
-use bevy_infinite_grid::{InfiniteGridPlugin, InfiniteGridBundle, InfiniteGrid};
+//use bevy_infinite_grid::{InfiniteGridPlugin, InfiniteGridBundle, InfiniteGrid};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
 use mesh::{create_mesh, load_elevation_map};
 use rand::prelude::*;
@@ -32,17 +34,18 @@ fn main() {
             }),
             ..default()
         }))
-        .add_system(bevy::window::close_on_esc)
-        .add_plugin(LogDiagnosticsPlugin::default())
-        .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+        .add_systems(Update, bevy::window::close_on_esc)
+        .add_plugins(LogDiagnosticsPlugin::default())
+        .add_plugins(FrameTimeDiagnosticsPlugin::default())
+        .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
-        .add_plugin(InfiniteGridPlugin)
+        //.add_plugins(InfiniteGridPlugin)
         //.add_plugin(WireframePlugin)
-        .add_startup_system(setup)
-        .add_plugin(WorldInspectorPlugin::new())
-        .add_system(user_actions)
-        .add_system(cube_orbit_movement)
+        .add_systems(Startup, setup)
+        .add_plugins(WorldInspectorPlugin::new())
+        // .add_system(ui_system)
+        .add_systems(Update, user_actions)
+        .add_systems(Update, cube_orbit_movement)
         .run();
 }
 
@@ -57,7 +60,7 @@ struct MovableBall {
 }
 impl MovableBall {
     const RADIUS:f32 = 0.5;
-    const INITIAL_POSITION:Transform = Transform::from_xyz(0.0, 4.0, 0.0);
+    const INITIAL_POSITION:Transform = Transform::from_xyz(0.0, 8.0, 0.0);
     const DEATH_HEIGHT:f32 = -10.0;
     const MAX_MOVEMENT_SPEED:f32 = 4.0;
     const INC_MOVEMENT_SPEED:f32 = 20.0; // times delta_seconds
@@ -99,14 +102,14 @@ fn setup(
     //seed: Res<Seed>,
 ) {
     // infinite grid
-    commands.spawn(InfiniteGridBundle {
-        grid: InfiniteGrid {
-            // shadow_color: None,
-            ..Default::default()
-        },
-        ..Default::default()
-        })
-        .insert(Name::new("InfiniteGrid"));
+    // commands.spawn(InfiniteGridBundle {
+    //     grid: InfiniteGrid {
+    //         // shadow_color: None,
+    //         ..Default::default()
+    //     },
+    //     ..Default::default()
+    //     })
+    //     .insert(Name::new("InfiniteGrid"));
 
     // plane
     let plane_size = 100.0;
@@ -151,7 +154,7 @@ fn setup(
         .insert(Name::new("Terrain"));
 
 
-    // Create the bouncing ball
+    // Create the ball
     let ball_entity = commands
         .spawn(RigidBody::Dynamic)
         .insert(Name::new("Ball"))
@@ -221,6 +224,11 @@ fn setup(
 
 }
 
+// fn ui_system(mut contexts: EguiContexts) {
+//     egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
+//         ui.label("world");
+//     });
+// }
 
 fn user_actions(
     input: Res<Input<KeyCode>>,
@@ -274,6 +282,9 @@ fn user_actions(
             if input.pressed(KeyCode::Space) {
                 velocity.linvel.y = MovableBall::JUMP_SPEED;
             }
+            if input.pressed(KeyCode::C) {
+                velocity.linvel.y = -MovableBall::JUMP_SPEED;
+            }
         } else {
             if input.pressed(KeyCode::Space) {
                 velocity.linvel.y = MovableBall::JUMP_SPEED;
@@ -287,7 +298,7 @@ fn user_actions(
         // airborne... current movement is locked
     }
     // apply horizontal velocity, but don't change vertical velocity
-    let speed_multiplier = if input.pressed(KeyCode::LShift) { MovableBall::SHIFT_MOVEMENT_MULTIPLIER } else { 1.0 };
+    let speed_multiplier = if input.pressed(KeyCode::ShiftLeft) { MovableBall::SHIFT_MOVEMENT_MULTIPLIER } else { 1.0 };
     let cur_velicity = (*ball.velocity.current_velocity())*speed_multiplier + Vec3::new(0.0, velocity.linvel.y, 0.0);
     velocity.linvel = cur_velicity;
 

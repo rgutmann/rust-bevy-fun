@@ -6,13 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { version = "0.10", features = ["dynamic_linking"] }
-bevy_rapier3d = "0.21"
+bevy = { version = "0.12.1", features = ["dynamic_linking"] }
+bevy_egui = "0.24.0"
+bevy_rapier3d = "0.24.0"
 rand = "0.8"
 image = "0.24.6"
-bevy_infinite_grid = { git = "https://github.com/ForesightMiningSoftwareCorporation/bevy_infinite_grid", branch = "main" }
+#bevy_infinite_grid = { git = "https://github.com/ForesightMiningSoftwareCorporation/bevy_infinite_grid", branch = "main" }
 noise = { version = "0.8.2", features = ["images"] }
-bevy-inspector-egui = "0.18.3"
+bevy-inspector-egui = "0.22.1"
 
 [workspace]
 resolver = "2" # Important! wgpu/Bevy needs this!
