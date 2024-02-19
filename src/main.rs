@@ -192,11 +192,12 @@ fn setup(
     // light
     let light_entity = commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 1500.0,
+            intensity: 10000.0,
+            range: 200.0,
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
+        transform: Transform::from_xyz(8.0, 16.0, 8.0),
         ..default()
         })
         .insert(Name::new("Light"))
