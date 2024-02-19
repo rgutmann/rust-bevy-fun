@@ -21,18 +21,18 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // plane
+    println!("{:?}", Mesh::from(shape::Plane::from_size(5.0)));
     commands.spawn(PbrBundle {
         mesh: meshes.add(shape::Plane::from_size(5.0).into()),
         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
         ..default()
     });
     // cubes
-    println!("{:?}", Mesh::from(shape::Cube { size: 0.2 }));
-    for i in 1..10 {
+    for i in 1..11 {
         commands.spawn((PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.2 })),
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.12 })),
             material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-            transform: Transform::from_xyz(i as f32 - 5.0, 0.5, 0.0),
+            transform: Transform::from_xyz((i as f32 - 5.0) / 2.0 - 0.25, 0.5, 0.0),
             ..default()
         },
         Movable,));
@@ -86,9 +86,9 @@ fn movement(
         let stable_vec = Vec3::from_array([0.0,-1.0,0.0]);
         let rotation_vec = movement.cross(stable_vec);
         //transform.rotate_local_axis(movement, TAU * time.delta_seconds() * 0.5);
-        transform.rotate_x(rotation_vec.x * TAU * time.delta_seconds() * 25.0);
-        transform.rotate_y(rotation_vec.y * TAU * time.delta_seconds() * 25.0);
-        transform.rotate_z(rotation_vec.z * TAU * time.delta_seconds() * 25.0);
+        transform.rotate_x(rotation_vec.x * TAU * time.delta_seconds() * 50.0);
+        transform.rotate_y(rotation_vec.y * TAU * time.delta_seconds() * 50.0);
+        transform.rotate_z(rotation_vec.z * TAU * time.delta_seconds() * 50.0);
 
     }
 }
