@@ -1,19 +1,22 @@
 use std::f32::consts::TAU;
 use bevy::{prelude::*};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use rand::prelude::*;
 
 fn main() {
     App::new()
-    .add_plugins(DefaultPlugins.set(WindowPlugin {
-        primary_window: Some(Window {
-            title: "Cube-Mania!    ---> use cursor keys to move, Esc to quit <---".to_string(),
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Cube-Mania!    ---> use cursor keys to move, Esc to quit <---".to_string(),
+                ..default()
+            }),
             ..default()
-        }),
-        ..default()
-    }))
-    .add_startup_system(setup)
+        }))
+        .add_startup_system(setup)
         .add_system(movement)
         .add_system(bevy::window::close_on_esc)
+        .add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .run();
 }
 
@@ -33,22 +36,23 @@ fn setup(
         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
         ..default()
     });
+
     // cubes in a row
     let cube_count = 50;
     let mut rng = rand::thread_rng();
     for i in 1..=cube_count {
-        let mut position = Transform::from_xyz(rng.gen_range((plane_size*0.2)..(plane_size*0.4)),rng.gen_range(0.3..0.7),0.0);
+        let mut position = Transform::from_xyz(rng.gen_range((plane_size*0.2)..(plane_size*0.4)),rng.gen_range(0.5..1.0),0.0);
         position.translate_around(Vec3::ZERO, Quat::from_axis_angle(Vec3::Y, -TAU / cube_count as f32 * i as f32));
 
         commands.spawn((PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 0.12 })),
             material: materials.add(calc_rainbow_color(0, cube_count, i-1).into()),
-            //transform: Transform::from_xyz((i as f32 - 5.0) / 2.0 - 0.25, 0.5, 0.0),
             transform: position,
             ..default()
         },
         Movable,));
     }
+
     // light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
