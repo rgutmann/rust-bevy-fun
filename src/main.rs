@@ -1,28 +1,33 @@
 use std::f32::consts::TAU;
 use bevy::input::mouse::{MouseMotion, MouseButton};
+use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
 use bevy_infinite_grid::{InfiniteGridPlugin, InfiniteGridBundle, InfiniteGrid};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
+use mesh::create_mesh;
 use rand::prelude::*;
 use bevy::prelude::*;
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::diagnostic::LogDiagnosticsPlugin;
+//use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy_rapier3d::prelude::*;
-use bevy::window::{CursorGrabMode, Cursor};
+//use bevy::window::{CursorGrabMode, Cursor};
 //use bevy_rapier3d::render::RapierDebugRenderPlugin;
-use helper::{ SimpleTween, VelocityTween, format_vec3f, println_vec3f };
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use helper::{ SimpleTween, VelocityTween, format_vec3f };
 
 mod helper;
+mod mesh;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Cube-Mania!    ---> use WASD to move, mouse to rotate, left MB to power up, Space to jump, Esc to quit <---".to_string(),
-                cursor: { 
-                    let mut cursor = Cursor::default(); 
-                    cursor.visible = false; 
-                    cursor.grab_mode = CursorGrabMode::Locked;
-                    cursor 
-                },
+                // cursor: { 
+                //     let mut cursor = Cursor::default(); 
+                //     cursor.visible = false; 
+                //     cursor.grab_mode = CursorGrabMode::Locked;
+                //     cursor 
+                // },
                 ..default()
             }),
             ..default()
@@ -33,7 +38,9 @@ fn main() {
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(InfiniteGridPlugin)
+        .add_plugin(WireframePlugin)
         .add_startup_system(setup)
+        .add_plugin(WorldInspectorPlugin::new())
         .add_system(user_actions)
         .add_system(cube_orbit_movement)
         .run();
@@ -84,17 +91,9 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    //asset_server: Res<AssetServer>,
+    //seed: Res<Seed>,
 ) {
-    // plane
-    let plane_size = 50.0;
-    commands.spawn(PbrBundle {
-            mesh: meshes.add(shape::Box::new(plane_size, 0.1, plane_size).into()),
-            material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
-            transform: Transform::from_xyz(0.0, -0.1, 0.0),
-            ..default()
-        })
-        .insert(Collider::cuboid(plane_size/2.0, 0.05, plane_size/2.0));
-    
     // infinite grid
     commands.spawn(InfiniteGridBundle {
         grid: InfiniteGrid {
@@ -103,6 +102,35 @@ fn setup(
         },
         ..Default::default()
     });
+
+    // plane
+    let plane_size = 50.0;
+    let plane_entity = commands.spawn(PbrBundle {
+            mesh: meshes.add(shape::Box::new(plane_size, 0.1, plane_size).into()),
+            material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+            transform: Transform::from_xyz(0.0, -0.1, 0.0),
+            ..default()
+        })
+        .insert(Collider::cuboid(plane_size/2.0, 0.05, plane_size/2.0))
+        .id();
+    
+    // terrain
+    let extent: f64 = plane_size as f64;
+    let intensity = 1.0;
+    let width: usize = 128;
+    let depth: usize = 128;
+    let mesh = create_mesh(extent, intensity, width, depth);
+    let terrain = commands.spawn(PbrBundle {
+            mesh: meshes.add(mesh),
+            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            transform: Transform::from_xyz(0.0, 0.3, 0.0),
+            ..Default::default()
+        })
+        //.insert(Collider::from_bevy_mesh(&mesh,ComputedColliderShape::TriMesh))
+        .insert(Wireframe)
+        .id();
+    commands.entity(plane_entity).push_children(&[terrain]);
+
 
     // Create the bouncing ball
     let ball_entity = commands
