@@ -1,7 +1,10 @@
 use std::f32::consts::TAU;
+use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
+use bevy_rapier3d::render::RapierDebugRenderPlugin;
 use rand::prelude::*;
 use bevy::prelude::*;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy_rapier3d::prelude::*;
 use smooth_bevy_cameras::LookTransformPlugin;
 use smooth_bevy_cameras::controllers::orbit::{OrbitCameraPlugin, OrbitCameraBundle, OrbitCameraController};
 
@@ -20,6 +23,8 @@ fn main() {
         .add_plugin(OrbitCameraPlugin::default())
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+        .add_plugin(RapierDebugRenderPlugin::default())
         .add_startup_system(setup)
         .add_system(cube_movement)
         .run();
@@ -49,7 +54,7 @@ fn setup(
     let cube_count = 50;
     let mut rng = rand::thread_rng();
     for i in 1..=cube_count {
-        let mut position = Transform::from_xyz(rng.gen_range((plane_size*0.2)..(plane_size*0.4)),rng.gen_range(0.5..1.0),0.0);
+        let mut position = Transform::from_xyz(rng.gen_range((plane_size*0.2)..(plane_size*0.4)),rng.gen_range(0.3..0.8),0.0);
         position.translate_around(Vec3::ZERO, Quat::from_axis_angle(Vec3::Y, -TAU / cube_count as f32 * i as f32));
 
         commands.spawn((PbrBundle {
@@ -60,6 +65,25 @@ fn setup(
         },
         MovableCube,));
     }
+
+    /* Create the ground. */
+    commands
+        .spawn(Collider::cuboid(100.0, 0.1, 100.0))
+        .insert(TransformBundle::from(Transform::from_xyz(0.0, 0.0, 0.0)));
+
+    /* Create the bouncing ball. */
+    commands
+        .spawn(RigidBody::Dynamic)
+        .insert(PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::UVSphere { radius: 0.5, sectors: 36, stacks: 36 })),
+            material: materials.add(Color::rgb(0.8, 0.8, 0.2).into()),
+            transform: Transform::from_xyz(0.0, 4.0, 0.0),
+            ..default()
+        })
+        .insert(Collider::ball(0.5))
+        .insert(ColliderDebugColor(Color::WHITE))
+        .insert(Restitution::coefficient(0.7))
+        .insert(TransformBundle::from(Transform::from_xyz(0.0, 4.0, 0.0)));
 
     // light
     commands.spawn(PointLightBundle {
@@ -78,7 +102,7 @@ fn setup(
             Vec3::new(-2.0, 2.5, 5.0), 
             Vec3::new(0., 0., 0.),
             Vec3::Y,
-        ));
+    ));
 }
 
 
