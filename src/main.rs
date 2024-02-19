@@ -34,7 +34,7 @@ struct MovableCube;
 #[derive(Component,Debug)]
 struct MovableBall {
     cur_movement:Vec3,
-    cur_orbit_speed:f32,
+    orbit_speed:SimpleTween,
 }
 impl MovableBall {
     const RADIUS:f32 = 0.5;
@@ -47,13 +47,37 @@ impl Default for MovableBall {
     fn default() -> Self {
         MovableBall { 
             cur_movement: Vec3::ZERO,
-            cur_orbit_speed: MovableBall::MIN_ORBIT_SPEED, 
+            orbit_speed: SimpleTween { 
+                cur: MovableBall::MIN_ORBIT_SPEED, 
+                min: MovableBall::MIN_ORBIT_SPEED, 
+                max: MovableBall::MAX_ORBIT_SPEED, 
+                inc: MovableBall::INC_ORBIT_SPEED, 
+            }
         }
     }
 }
 
 #[derive(Component)]
 struct CameraControl;
+
+#[derive(Debug)]
+struct SimpleTween {
+    cur:f32,
+    min:f32,
+    max:f32,
+    inc:f32,
+}
+impl SimpleTween {
+    fn apply_times(&mut self, times: isize) {
+        self.cur = (self.cur + (times as f32 * self.inc)).max(self.min).min(self.max);
+    }
+    fn increase_once(&mut self) {
+        self.apply_times(1);
+    }
+    fn decrease_once(&mut self) {
+        self.apply_times(-1);
+    }
+}
 
 /// set up 3D scene
 fn setup(
@@ -195,9 +219,9 @@ fn user_actions(
     //
     // cubes acceleration
     if res_buttons.pressed(MouseButton::Left) {
-        ball.cur_orbit_speed = (ball.cur_orbit_speed + MovableBall::INC_ORBIT_SPEED).min(MovableBall::MAX_ORBIT_SPEED);
+        ball.orbit_speed.increase_once();
     } else {
-        ball.cur_orbit_speed = (ball.cur_orbit_speed - MovableBall::INC_ORBIT_SPEED).max(MovableBall::MIN_ORBIT_SPEED);
+        ball.orbit_speed.decrease_once();
     }
 }
 
@@ -208,7 +232,7 @@ fn cube_movement(
     ball_query: Query<&MovableBall, (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>
 ) {
     let ball = ball_query.get_single().unwrap();
-    let rotation_speed = ball.cur_orbit_speed;
+    let rotation_speed = ball.orbit_speed.cur;
 
     for mut transform in &mut cube_query {
         let gpos_start = transform.translation;
