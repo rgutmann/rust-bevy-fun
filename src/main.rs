@@ -57,8 +57,11 @@ struct MovableBall {
 }
 impl MovableBall {
     const RADIUS:f32 = 0.5;
+    const INITIAL_POSITION:Transform = Transform::from_xyz(0.0, 4.0, 0.0);
+    const DEATH_HEIGHT:f32 = -10.0;
     const MAX_MOVEMENT_SPEED:f32 = 4.0;
     const INC_MOVEMENT_SPEED:f32 = 20.0; // times delta_seconds
+    const SHIFT_MOVEMENT_MULTIPLIER:f32 = 3.0;
     const JUMP_SPEED:f32 = 5.0;
     const MIN_ORBIT_SPEED:f32 = 50.0;
     const MAX_ORBIT_SPEED:f32 = 300.0;
@@ -138,7 +141,7 @@ fn setup(
         .insert((PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::UVSphere { radius: MovableBall::RADIUS, sectors: 36, stacks: 36 })),
                 material: materials.add(Color::rgb(0.8, 0.8, 0.2).into()),
-                transform: Transform::from_xyz(0.0, 4.0, 0.0),
+                transform: MovableBall::INITIAL_POSITION,
                 ..default()
              }, 
              MovableBall::default(),
@@ -211,6 +214,10 @@ fn user_actions(
         ));
     
     println!("LOC:{} - VEL:{} - ROT:{} - Err:{}", format_vec3f(ball_transform.translation), format_vec3f(velocity.linvel), format_vec3f(ball_transform.rotation.xyz()), camera_rotation_misalignment);
+    
+    if ball_transform.translation.y < MovableBall::DEATH_HEIGHT {
+        ball_transform.translation = MovableBall::INITIAL_POSITION.translation;
+    }
 
     //
     // input based movement, but only when touching ground
@@ -248,7 +255,8 @@ fn user_actions(
         // airborne... current movement is locked
     }
     // apply horizontal velocity, but don't change vertical velocity
-    let cur_velicity = *ball.velocity.current_velocity() + Vec3::new(0.0, velocity.linvel.y, 0.0);
+    let speed_multiplier = if input.pressed(KeyCode::LShift) { MovableBall::SHIFT_MOVEMENT_MULTIPLIER } else { 1.0 };
+    let cur_velicity = (*ball.velocity.current_velocity())*speed_multiplier + Vec3::new(0.0, velocity.linvel.y, 0.0);
     velocity.linvel = cur_velicity;
 
     //
