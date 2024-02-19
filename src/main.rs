@@ -1,6 +1,5 @@
 use std::f32::consts::TAU;
 use bevy::input::mouse::{MouseMotion, MouseButton};
-use bevy::ui;
 use bevy_egui::EguiContexts;
 use bevy_egui::egui;
 //use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
@@ -44,7 +43,6 @@ fn main() {
         //.add_plugin(WireframePlugin)
         .add_systems(Startup, setup)
         .add_plugins(DebugTextPlugin)
-        //.add_systems(Update, ui_system)
         .add_plugins(WorldInspectorPlugin::new())
         .add_systems(Update, user_actions)
         .add_systems(Update, cube_orbit_movement)
@@ -119,22 +117,23 @@ fn setup(
     // terrain
     let extent: f64 = plane_size as f64;
     let intensity = 2.0;
-
+/* 
+    // randomly generated noisemap
+    let width: usize = 512;
+    let depth: usize = 512;
+    let frequency = 0.1;
+    let lacunarity = 2.0;
+    let octaves = 6;
+    let create_file = true;
+    let noisemap = generate_noisemap(extent, width, depth, frequency, lacunarity, octaves, create_file);
+    let elevation_map: Handle<Image> = asset_server.load("fbm.png").into();
+    let map = load_elevation_map( "example_images/fbm.png", 2.0);
+ */    
+    // staigermanus dogwaffle terrain3 map https://www.renderosity.com/freestuff/items/77673
     let color_map: Handle<Image> = asset_server.load("dogwaffle-terrain3/dogwaffle-terrain3-colr.png").into();
-    //let elevation_map: Handle<Image> = asset_server.load("fbm.png").into();
-    
-    let map = load_elevation_map( "assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.jpg", 4.0);
-    //let map = load_elevation_map( "example_images/fbm.png", 2.0);
+    let map = load_elevation_map( "assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.png", 4.0);
     let (width, depth) = map.size();
 
-    // let width: usize = 512;
-    // let depth: usize = 512;
-    // let frequency = 0.1;
-    // let lacunarity = 2.0;
-    // let octaves = 6;
-    // let create_file = true;
-    // let noisemap = generate_noisemap(extent, width, depth, frequency, lacunarity, octaves, create_file);
-    
     let mesh = create_mesh(extent, width, depth, map, intensity);
     commands.spawn(PbrBundle {
             mesh: meshes.add(mesh),
@@ -223,7 +222,7 @@ impl Plugin for DebugTextPlugin {
     fn build(&self, app: &mut App) {
         app
             .init_resource::<DebugTextState>()
-            .add_systems(Update, ui_system);
+            .add_systems(Update, debug_ui_system);
     }
 }
 
@@ -241,7 +240,7 @@ impl Default for DebugTextState {
 }
 
 // https://whoisryosuke.com/blog/2023/getting-started-with-egui-in-rust
-fn ui_system(mut contexts: EguiContexts,
+fn debug_ui_system(mut contexts: EguiContexts,
     mut text_state: ResMut<DebugTextState>,
     ball_query: Query<(&Transform, &Velocity), (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>,) {
     egui::Window::new("Debug output").show(contexts.ctx_mut(), |ui| {
