@@ -1,22 +1,36 @@
 use bevy::prelude::*;
 use bevy::render::render_resource::PrimitiveTopology;
-use noise::utils::{NoiseMapBuilder, PlaneMapBuilder};
-use noise::Fbm;
+use noise::{utils::*, Fbm, Perlin};
 
-///
-/// https://lejondahl.com/heightmap/
-pub fn create_mesh(extent: f64, intensity: f32, width: usize, depth: usize) -> Mesh {
-    // Create noisemap
-    let mut fbm = Fbm::new();
-    fbm.frequency = 0.1;
-    fbm.lacunarity = 2.0;
-    fbm.octaves = 6;
-    let noisemap = PlaneMapBuilder::new(&fbm)
+// TODO:
+// pub struct TerrainMap {
+//     size: (usize, usize),
+//     border_value: f64,
+//     map: Vec<f64>,
+// }
+
+pub fn generate_noisemap(extent: f64, width: usize, depth: usize, frequency: f64, lacunarity: f64, octaves: usize, create_file: bool) -> NoiseMap {
+    let mut fbm = Fbm::<Perlin>::default();
+    fbm.frequency = frequency;
+    fbm.lacunarity = lacunarity;
+    fbm.octaves = octaves;
+    let noisemap = PlaneMapBuilder::<Fbm<Perlin>, 2>::new(fbm)
         .set_size(width, depth)
         .set_x_bounds(-extent, extent)
         .set_y_bounds(-extent, extent)
+        .set_is_seamless(true)
         .build();
 
+    if create_file {
+        noisemap.write_to_file("assets/fbm.png");
+    }
+    noisemap
+}
+
+///
+/// https://lejondahl.com/heightmap/
+/// https://www.renderosity.com/freestuff/items/77673/seamless-tileable-elevation-map-with-texture-map
+pub fn create_mesh(extent: f64, width: usize, depth: usize, noisemap: NoiseMap, intensity: f32) -> Mesh {
     let vertices_count: usize = (width + 1) * (depth + 1);
     let triangle_count: usize = width * depth * 2 * 3;
 
@@ -30,6 +44,8 @@ pub fn create_mesh(extent: f64, intensity: f32, width: usize, depth: usize) -> M
     let mut normals: Vec<[f32; 3]> = Vec::with_capacity(vertices_count);
     let mut uvs: Vec<[f32; 2]> = Vec::with_capacity(vertices_count);
 
+    let mut min_height = f32::MAX;
+    let mut max_height = f32::MIN;
     for d in 0..=width {
         for w in 0..=depth {
             let (w_f32, d_f32) = (w as f32, d as f32);
@@ -42,8 +58,14 @@ pub fn create_mesh(extent: f64, intensity: f32, width: usize, depth: usize) -> M
             positions.push(pos);
             normals.push([0.0, 1.0, 0.0]);
             uvs.push([w_f32 / width_f32, d_f32 / depth_f32]);
+
+            // TODO: remove when not needed anymore
+            let height = noisemap.get_value(w, d) as f32;
+            min_height = min_height.min(height);
+            max_height = max_height.max(height);
         }
     }
+    println!("Terrain MIN height: {} - MAX height: {}", min_height, max_height);
 
     // Defining triangles.
     let mut triangles: Vec<u32> = Vec::with_capacity(triangle_count);

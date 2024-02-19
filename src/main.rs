@@ -1,13 +1,15 @@
 use std::f32::consts::TAU;
+use image::DynamicImage;
+use image::io::Reader as ImageReader;
 use bevy::input::mouse::{MouseMotion, MouseButton};
 use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
 use bevy_infinite_grid::{InfiniteGridPlugin, InfiniteGridBundle, InfiniteGrid};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
-use mesh::create_mesh;
+use mesh::{create_mesh, generate_noisemap};
 use rand::prelude::*;
 use bevy::prelude::*;
 use bevy::diagnostic::LogDiagnosticsPlugin;
-//use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
+use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy_rapier3d::prelude::*;
 //use bevy::window::{CursorGrabMode, Cursor};
 //use bevy_rapier3d::render::RapierDebugRenderPlugin;
@@ -34,7 +36,7 @@ fn main() {
         }))
         .add_system(bevy::window::close_on_esc)
         .add_plugin(LogDiagnosticsPlugin::default())
-        //.add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(InfiniteGridPlugin)
@@ -94,7 +96,7 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    //asset_server: Res<AssetServer>,
+    asset_server: Res<AssetServer>,
     //seed: Res<Seed>,
 ) {
     // infinite grid
@@ -104,40 +106,55 @@ fn setup(
             ..Default::default()
         },
         ..Default::default()
-    });
+        })
+        .insert(Name::new("InfiniteGrid"));
 
     // plane
-    let plane_size = 50.0;
-    let plane_entity = commands.spawn(PbrBundle {
+    let plane_size = 100.0;
+    let _plane_entity = commands.spawn(PbrBundle {
             mesh: meshes.add(shape::Box::new(plane_size, 0.1, plane_size).into()),
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
             transform: Transform::from_xyz(0.0, -0.1, 0.0),
             ..default()
         })
+        .insert(Name::new("Plane"))
         .insert(Collider::cuboid(plane_size/2.0, 0.05, plane_size/2.0))
         .id();
     
+    //let elevation_map: Handle<Image> = asset_server.load("assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.jpg").into();
+    //let elevation_map: Handle<Image> = asset_server.load("fbm.png").into();
+    /* TODO:
+    let dyn_image = ImageReader::open("assets/fbm.png").unwrap().decode().unwrap();
+    let gray_image = dyn_image.as_luma8().unwrap();
+    println!("image loaded with dimension: {:?}", gray_image.dimensions());
+    */ 
+    
     // terrain
     let extent: f64 = plane_size as f64;
-    let intensity = 1.0;
-    let width: usize = 128;
-    let depth: usize = 128;
-    let mesh = create_mesh(extent, intensity, width, depth);
-    let terrain = commands.spawn(PbrBundle {
+    let intensity = 2.0;
+    let width: usize = 512;
+    let depth: usize = 512;
+    let frequency = 0.1;
+    let lacunarity = 2.0;
+    let octaves = 6;
+    let create_file = true;
+    let noisemap = generate_noisemap(extent, width, depth, frequency, lacunarity, octaves, create_file);
+    let mesh = create_mesh(extent, width, depth, noisemap, intensity);
+    commands.spawn(PbrBundle {
             mesh: meshes.add(mesh),
             material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
             transform: Transform::from_xyz(0.0, 0.3, 0.0),
             ..Default::default()
         })
+        .insert(Name::new("Terrain"))
         //.insert(Collider::from_bevy_mesh(&mesh,ComputedColliderShape::TriMesh))
-        .insert(Wireframe)
-        .id();
-    commands.entity(plane_entity).push_children(&[terrain]);
+        .insert(Wireframe);
 
 
     // Create the bouncing ball
     let ball_entity = commands
         .spawn(RigidBody::Dynamic)
+        .insert(Name::new("Ball"))
         .insert((PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::UVSphere { radius: MovableBall::RADIUS, sectors: 36, stacks: 36 })),
                 material: materials.add(Color::rgb(0.8, 0.8, 0.2).into()),
@@ -163,7 +180,7 @@ fn setup(
         let mut position = Transform::from_xyz(rng.gen_range(1.0..2.0),rng.gen_range(-0.25..0.25),0.0);
         position.translate_around(Vec3::ZERO, Quat::from_axis_angle(Vec3::Y, -TAU / cube_count as f32 * i as f32));
 
-        let child = commands.spawn((PbrBundle {
+        let cube = commands.spawn((PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Cube { size: 0.12 })),
                 material: materials.add(calc_rainbow_color(0, cube_count, i-1).into()),
                 transform: position,
@@ -172,12 +189,12 @@ fn setup(
             MovableCube,
         )).id();
 
-        commands.entity(ball_entity).push_children(&[child]);
+        commands.entity(ball_entity).push_children(&[cube]);
     }
 
 
     // light
-    commands.spawn(PointLightBundle {
+    let _light_entity = commands.spawn(PointLightBundle {
         point_light: PointLight {
             intensity: 1500.0,
             shadows_enabled: true,
@@ -185,7 +202,10 @@ fn setup(
         },
         transform: Transform::from_xyz(4.0, 8.0, 4.0),
         ..default()
-    });
+        })
+        .insert(Name::new("Light"))
+        .id();
+    //commands.entity(ball_entity).push_children(&[light_entity]);
     
     // Attach camera to ball
     let camera_entity = commands.spawn((Camera3dBundle {
@@ -193,7 +213,9 @@ fn setup(
             ..default()
         }, 
         CameraControl,
-    )).id();
+        ))
+        .insert(Name::new("Camera"))
+        .id();
     commands.entity(ball_entity).push_children(&[camera_entity]);
 
 }
@@ -213,7 +235,7 @@ fn user_actions(
             camera_transform.translation.x, 0.0, camera_transform.translation.z 
         ));
     
-    println!("LOC:{} - VEL:{} - ROT:{} - Err:{}", format_vec3f(ball_transform.translation), format_vec3f(velocity.linvel), format_vec3f(ball_transform.rotation.xyz()), camera_rotation_misalignment);
+    // TODO: println!("LOC:{} - VEL:{} - ROT:{} - Err:{}", format_vec3f(ball_transform.translation), format_vec3f(velocity.linvel), format_vec3f(ball_transform.rotation.xyz()), camera_rotation_misalignment);
     
     if ball_transform.translation.y < MovableBall::DEATH_HEIGHT {
         ball_transform.translation = MovableBall::INITIAL_POSITION.translation;
