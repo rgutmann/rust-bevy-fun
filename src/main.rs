@@ -190,7 +190,7 @@ fn setup(
 
 
     // light
-    let _light_entity = commands.spawn(PointLightBundle {
+    let light_entity = commands.spawn(PointLightBundle {
         point_light: PointLight {
             intensity: 1500.0,
             shadows_enabled: true,
@@ -201,7 +201,7 @@ fn setup(
         })
         .insert(Name::new("Light"))
         .id();
-    //commands.entity(ball_entity).push_children(&[light_entity]);
+    commands.entity(ball_entity).push_children(&[light_entity]);
     
     // Attach camera to ball
     let camera_entity = commands.spawn((Camera3dBundle {
