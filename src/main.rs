@@ -128,7 +128,7 @@ fn setup(
     let gray_image = dyn_image.as_luma8().unwrap();
     println!("image loaded with dimension: {:?}", gray_image.dimensions());
     */ 
-    
+
     // terrain
     let extent: f64 = plane_size as f64;
     let intensity = 2.0;
@@ -289,7 +289,7 @@ fn user_actions(
         rotation_move += ev.delta;
     }
     // rotate ball accordingly
-    ball_transform.rotate_y(rotation_move.x * 0.01);
+    ball_transform.rotate_y(-rotation_move.x * 0.01);
 
     //
     // cubes acceleration
