@@ -1,11 +1,10 @@
 use std::f32::consts::TAU;
+use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
 use rand::prelude::*;
 use bevy::prelude::*;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy_rapier3d::prelude::*;
-use smooth_bevy_cameras::LookTransformPlugin;
-use smooth_bevy_cameras::controllers::orbit::{OrbitCameraPlugin, OrbitCameraBundle, OrbitCameraController};
 //use bevy_rapier3d::render::RapierDebugRenderPlugin;
 
 
@@ -19,10 +18,8 @@ fn main() {
             ..default()
         }))
         .add_system(bevy::window::close_on_esc)
-        .add_plugin(LookTransformPlugin)
-        .add_plugin(OrbitCameraPlugin::default())
         .add_plugin(LogDiagnosticsPlugin::default())
-        .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        //.add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_startup_system(setup)
@@ -61,16 +58,19 @@ fn setup(
     let ball_entity = commands
         .spawn(RigidBody::Dynamic)
         .insert((PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::UVSphere { radius: 0.5, sectors: 36, stacks: 36 })),
-            material: materials.add(Color::rgb(0.8, 0.8, 0.2).into()),
-            transform: Transform::from_xyz(0.0, 4.0, 0.0),
-            ..default()
-        }, MovableBall))
+                mesh: meshes.add(Mesh::from(shape::UVSphere { radius: 0.5, sectors: 36, stacks: 36 })),
+                material: materials.add(Color::rgb(0.8, 0.8, 0.2).into()),
+                transform: Transform::from_xyz(0.0, 4.0, 0.0),
+                ..default()
+             }, 
+             MovableBall,
+        ))
         .insert(Collider::ball(0.5))
         .insert(ColliderDebugColor(Color::WHITE))
         .insert(Restitution::coefficient(0.7))
         .id();
-    // Cubes as childs
+
+    // Create cubes as childs
     let cube_count = 50;
     let mut rng = rand::thread_rng();
     for i in 1..=cube_count {
@@ -78,11 +78,13 @@ fn setup(
         position.translate_around(Vec3::ZERO, Quat::from_axis_angle(Vec3::Y, -TAU / cube_count as f32 * i as f32));
 
         let child = commands.spawn((PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.12 })),
-            material: materials.add(calc_rainbow_color(0, cube_count, i-1).into()),
-            transform: position,
-            ..default()
-        }, MovableCube,)).id();
+                mesh: meshes.add(Mesh::from(shape::Cube { size: 0.12 })),
+                material: materials.add(calc_rainbow_color(0, cube_count, i-1).into()),
+                transform: position,
+                ..default()
+            }, 
+            MovableCube,
+        )).id();
 
         commands.entity(ball_entity).push_children(&[child]);
     }
@@ -98,41 +100,58 @@ fn setup(
         transform: Transform::from_xyz(4.0, 8.0, 4.0),
         ..default()
     });
-    // camera
-    commands.spawn(Camera3dBundle::default())
-        .insert(OrbitCameraBundle::new(
-            OrbitCameraController::default(),
-            Vec3::new(-2.0, 2.5, 5.0), 
-            Vec3::new(0., 0., 0.),
-            Vec3::Y,
-    ));
+    
+    // Attach camera to ball
+    let camera_entity = commands.spawn((Camera3dBundle {
+            transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+            ..default()
+        }, 
+        CameraControl,
+    )).id();
+    commands.entity(ball_entity).push_children(&[camera_entity]);
+
 }
 
 
 fn ball_movement(
     input: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut query: Query<&mut Transform, With<MovableBall>>,
+    mut ev_motion: EventReader<MouseMotion>,
+    mut ball_query: Query<&mut Transform, (With<MovableBall>,Without<CameraControl>)>,
+    camera_query: Query<&Transform, With<CameraControl>>,
 ) {
     // determine key-based movement
     let mut direction = Vec3::ZERO;
-    if input.pressed(KeyCode::Up) {
+    if input.pressed(KeyCode::W) {
         direction.z -= 1.0;
     }
-    if input.pressed(KeyCode::Down) {
+    if input.pressed(KeyCode::S) {
         direction.z += 1.0;
     }
-    if input.pressed(KeyCode::Left) {
+    if input.pressed(KeyCode::A) {
         direction.x -= 1.0;
     }
-    if input.pressed(KeyCode::Right) {
+    if input.pressed(KeyCode::D) {
         direction.x += 1.0;
     }
+    // key-based movement
+    let mut ball_transform = ball_query.single_mut();
+    let camera_transform = camera_query.single();
+    let camera_rotation = camera_transform.rotation;
+    let camera_translation = camera_transform.translation;
+    let mut translation = Transform::from_translation(time.delta_seconds() * 2.0 * direction);
+    print!("{:?} rot({:?}) trans({:?})", translation, camera_rotation, camera_rotation);
+    translation.rotate_local_y(camera_rotation.y);
+    println!(" -> {:?}", translation);
+    ball_transform.translation += translation.translation;
 
-    for mut transform in &mut query {
-        // key-based movement
-        transform.translation += time.delta_seconds() * 2.0 * direction;
+    // determine rotation
+    let mut rotation_move = Vec2::ZERO;
+    for ev in ev_motion.iter() {
+        rotation_move += ev.delta;
     }
+    // rotate around center
+    ball_transform.rotate_y(rotation_move.x * 0.01);
 }
 
 
