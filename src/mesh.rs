@@ -54,6 +54,7 @@ impl ElevationMap {
             self.map[x + y * width]
         } else if (x == width && y <= height) || (y == height && x <= width) {
             0.0 // normal border
+            // TODO: this probably needs to be changed to the overlapping border value
         } else {
             eprintln!("illegal position requested: ({}, {})", x, y);
             -1.0
@@ -106,31 +107,41 @@ pub fn _generate_noisemap(
 }
 
 /// Creates a mesh based on the given parameters and returns a `Mesh` object.
-/// The `extent` parameter determines the size of the mesh.
-/// The `width` and `depth` parameters determine the resolution of the mesh.
+/// The `extent` parameter determines the size of the mesh in the real world.
+/// The `mesh_width` and `mesh_depth` parameters determine the resolution of the mesh.
 /// The `map` parameter is an `ElevationMap` object containing the elevation data.
 /// The `intensity` parameter controls the vertical scaling of the mesh.
-pub fn create_mesh(extent: f64, width: usize, depth: usize, map: ElevationMap, intensity: f32) -> Mesh {
-    let vertices_count: usize = (width + 1) * (depth + 1);
-    let triangle_count: usize = width * depth * 2 * 3;
+pub fn create_mesh(extent: f64, mesh_pos: (isize, isize), mesh_size: (usize, usize), map: &ElevationMap, intensity: f32) -> Mesh {
+    let (map_width, map_depth) = map.size;
+    let (mesh_width, mesh_depth) = mesh_size;
+    let (mut mesh_x, mut mesh_y) = mesh_pos;
+    if mesh_x < 0 { mesh_x += map_width as isize; }
+    if mesh_y < 0 { mesh_y += map_depth as isize; }
+
+    let vertices_count: usize = (mesh_width + 1) * (mesh_depth + 1);
+    let triangle_count: usize = mesh_width * mesh_depth * 2 * 3;
 
     // Cast
-    let (width_u32, depth_u32) = (width as u32, depth as u32);
-    let (width_f32, depth_f32) = (width as f32, depth as f32);
+    let (width_u32, depth_u32) = (mesh_width as u32, mesh_depth as u32);
+    let (width_f32, depth_f32) = (mesh_width as f32, mesh_depth as f32);
     let extent_f32 = extent as f32;
 
     // Defining vertices.
     let mut positions: Vec<[f32; 3]> = Vec::with_capacity(vertices_count);
     let mut normals: Vec<[f32; 3]> = Vec::with_capacity(vertices_count);
     let mut uvs: Vec<[f32; 2]> = Vec::with_capacity(vertices_count);
+    for d in 0..=mesh_depth {
+        for w in 0..=mesh_width {
+            // Calculate the position in the elevation map, considering repetition
+            let map_x = (mesh_x as usize + w) % map_width;
+            let map_y = (mesh_y as usize + d) % map_depth;
 
-    for d in 0..=depth {
-        for w in 0..=width {
+            // Cast
             let (w_f32, d_f32) = (w as f32, d as f32);
 
             let pos = [
                 (w_f32 - width_f32 / 2.) * extent_f32 / width_f32,
-                (map.get_value(w, d) as f32) * intensity,
+                (map.get_value(map_x, map_y) as f32) * intensity,
                 (d_f32 - depth_f32 / 2.) * extent_f32 / depth_f32,
             ];
             positions.push(pos);
@@ -141,7 +152,6 @@ pub fn create_mesh(extent: f64, width: usize, depth: usize, map: ElevationMap, i
 
     // Defining triangles.
     let mut triangles: Vec<u32> = Vec::with_capacity(triangle_count);
-
     for d in 0..depth_u32 {
         for w in 0..width_u32 {
             // First triangle

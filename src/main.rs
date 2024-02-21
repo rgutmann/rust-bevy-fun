@@ -1,4 +1,5 @@
 use std::f32::consts::TAU;
+use std::rc::Rc;
 use bevy::input::mouse::{MouseMotion, MouseButton};
 //use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
@@ -111,6 +112,17 @@ impl Default for Terrain {
     }
 }
 
+#[derive(Component,Debug)]
+struct TerrainMesh {
+    //position: (),
+}
+impl Default for TerrainMesh {
+    fn default() -> Self {
+        TerrainMesh { 
+        }
+    }
+}
+
 #[derive(Component)]
 struct CameraControl;
 
@@ -152,18 +164,73 @@ fn setup(
     let color_map: Handle<Image> = asset_server.load("dogwaffle-terrain3/dogwaffle-terrain3-colr.png").into();
     let map = load_elevation_map( "assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.png", 4.0);
     let (width, depth) = map.size();
+    // 1024 * 768 = (2^10) * (3*2^8)
 
-    let mesh = create_mesh(terrain.size, width, depth, map, terrain.intensity);
-    commands.spawn(PbrBundle {
-            mesh: meshes.add(mesh),
-            material: materials.add(color_map.into()),
-            transform: Transform::from_xyz(0.0, -0., 0.0),
-            ..Default::default()
-        })
-        //.insert(Collider::from_bevy_mesh(&mesh,ComputedColliderShape::TriMesh))
-        //.insert(Wireframe)
-        .insert(Name::new("Terrain"));
-
+    {
+        let mesh = create_mesh(terrain.size, (0,0), (width, depth), &map, terrain.intensity);
+        commands.spawn(PbrBundle {
+                mesh: meshes.add(mesh),
+                material: materials.add(color_map.clone().into()),
+                transform: Transform::from_xyz(0.0, -0., 0.0),
+                ..Default::default()
+            })
+            .insert(TerrainMesh::default())
+            //.insert(Collider::from_bevy_mesh(&mesh,ComputedColliderShape::TriMesh))
+            //.insert(Wireframe)
+            .insert(Name::new("TerrainMesh"));
+    }
+    {
+        let mesh2 = create_mesh(terrain.size, (width as isize,0), (width, depth), &map, terrain.intensity);
+        commands.spawn(PbrBundle {
+                mesh: meshes.add(mesh2),
+                material: materials.add(color_map.clone().into()),
+                transform: Transform::from_xyz(terrain.size as f32, -0., 0.0),
+                ..Default::default()
+            })
+            .insert(TerrainMesh::default())
+            //.insert(Collider::from_bevy_mesh(&mesh,ComputedColliderShape::TriMesh))
+            //.insert(Wireframe)
+            .insert(Name::new("TerrainMesh2"));
+    }
+    {
+        let mesh3 = create_mesh(terrain.size, (0,depth as isize), (width, depth), &map, terrain.intensity);
+        commands.spawn(PbrBundle {
+                mesh: meshes.add(mesh3),
+                material: materials.add(color_map.clone().into()),
+                transform: Transform::from_xyz(0.0, -0., terrain.size as f32),
+                ..Default::default()
+            })
+            .insert(TerrainMesh::default())
+            //.insert(Collider::from_bevy_mesh(&mesh,ComputedColliderShape::TriMesh))
+            //.insert(Wireframe)
+            .insert(Name::new("TerrainMesh3"));
+    }
+    {
+        let mesh4 = create_mesh(terrain.size, (-(width as isize),0), (width, depth), &map, terrain.intensity);
+        commands.spawn(PbrBundle {
+                mesh: meshes.add(mesh4),
+                material: materials.add(color_map.clone().into()),
+                transform: Transform::from_xyz(-terrain.size as f32, -0., 0.0),
+                ..Default::default()
+            })
+            .insert(TerrainMesh::default())
+            //.insert(Collider::from_bevy_mesh(&mesh,ComputedColliderShape::TriMesh))
+            //.insert(Wireframe)
+            .insert(Name::new("TerrainMesh4"));
+    }
+    {
+        let mesh5 = create_mesh(terrain.size, (0,-(depth as isize)), (width, depth), &map, terrain.intensity);
+        commands.spawn(PbrBundle {
+                mesh: meshes.add(mesh5),
+                material: materials.add(color_map.clone().into()),
+                transform: Transform::from_xyz(0.0, -0., -terrain.size as f32),
+                ..Default::default()
+            })
+            .insert(TerrainMesh::default())
+            //.insert(Collider::from_bevy_mesh(&mesh,ComputedColliderShape::TriMesh))
+            //.insert(Wireframe)
+            .insert(Name::new("TerrainMesh5"));
+    }
 
     // Create the ball
     let ball_entity = commands
