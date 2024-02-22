@@ -112,18 +112,22 @@ pub fn _generate_noisemap(
 /// The `map` parameter is an `ElevationMap` object containing the elevation data.
 /// The `intensity` parameter controls the vertical scaling of the mesh.
 pub fn create_mesh(extent: f64, mesh_pos: (isize, isize), mesh_size: (usize, usize), map: &ElevationMap, intensity: f32) -> Mesh {
-    let (map_width, map_depth) = map.size;
+    let (umap_width, umap_depth) = map.size;
+    let (map_width, map_depth) = (umap_width as isize, umap_depth as isize);
     let (mesh_width, mesh_depth) = mesh_size;
-    let (mut mesh_x, mut mesh_y) = mesh_pos;
-    if mesh_x < 0 { mesh_x += map_width as isize; }
-    if mesh_y < 0 { mesh_y += map_depth as isize; }
+    let (mesh_x, mesh_y) = mesh_pos;
+    let (umesh_x, umesh_y) = (
+        // Calculate the position in the elevation map, considering repetition
+        if mesh_x < 0 { (mesh_x % map_width) + map_width } else { mesh_x % map_width } as usize, 
+        if mesh_y < 0 { (mesh_y % map_depth) + map_depth } else { mesh_y % map_depth } as usize
+    );
 
     let vertices_count: usize = (mesh_width + 1) * (mesh_depth + 1);
     let triangle_count: usize = mesh_width * mesh_depth * 2 * 3;
 
-    // Cast
-    let (width_u32, depth_u32) = (mesh_width as u32, mesh_depth as u32);
-    let (width_f32, depth_f32) = (mesh_width as f32, mesh_depth as f32);
+    // Cast (specific types needed for 3d api's, like bevy's 3d engine)
+    let (mesh_width_u32, mesh_depth_u32) = (mesh_width as u32, mesh_depth as u32);
+    let (mesh_width_f32, mesh_depth_f32) = (mesh_width as f32, mesh_depth as f32);
     let extent_f32 = extent as f32;
 
     // Defining vertices.
@@ -133,35 +137,36 @@ pub fn create_mesh(extent: f64, mesh_pos: (isize, isize), mesh_size: (usize, usi
     for d in 0..=mesh_depth {
         for w in 0..=mesh_width {
             // Calculate the position in the elevation map, considering repetition
-            let map_x = (mesh_x as usize + w) % map_width;
-            let map_y = (mesh_y as usize + d) % map_depth;
+            // (again, because the mesh might overlap over the borders)
+            let map_x = (umesh_x + w) % umap_width;
+            let map_y = (umesh_y + d) % umap_depth;
 
             // Cast
             let (w_f32, d_f32) = (w as f32, d as f32);
 
             let pos = [
-                (w_f32 - width_f32 / 2.) * extent_f32 / width_f32,
+                (mesh_x as f32 + w_f32 - mesh_width_f32 / 2.) * (extent_f32 / mesh_width_f32),
                 (map.get_value(map_x, map_y) as f32) * intensity,
-                (d_f32 - depth_f32 / 2.) * extent_f32 / depth_f32,
+                (mesh_y as f32 + d_f32 - mesh_depth_f32 / 2.) * (extent_f32 / mesh_depth_f32),
             ];
             positions.push(pos);
             normals.push([0.0, 1.0, 0.0]);
-            uvs.push([w_f32 / width_f32, d_f32 / depth_f32]);
+            uvs.push([w_f32 / mesh_width_f32, d_f32 / mesh_depth_f32]);
         }
     }
 
     // Defining triangles.
     let mut triangles: Vec<u32> = Vec::with_capacity(triangle_count);
-    for d in 0..depth_u32 {
-        for w in 0..width_u32 {
+    for d in 0..mesh_depth_u32 {
+        for w in 0..mesh_width_u32 {
             // First triangle
-            triangles.push((d * (width_u32 + 1)) + w);
-            triangles.push(((d + 1) * (width_u32 + 1)) + w);
-            triangles.push(((d + 1) * (width_u32 + 1)) + w + 1);
+            triangles.push((d * (mesh_width_u32 + 1)) + w);
+            triangles.push(((d + 1) * (mesh_width_u32 + 1)) + w);
+            triangles.push(((d + 1) * (mesh_width_u32 + 1)) + w + 1);
             // Second triangle
-            triangles.push((d * (width_u32 + 1)) + w);
-            triangles.push(((d + 1) * (width_u32 + 1)) + w + 1);
-            triangles.push((d * (width_u32 + 1)) + w + 1);
+            triangles.push((d * (mesh_width_u32 + 1)) + w);
+            triangles.push(((d + 1) * (mesh_width_u32 + 1)) + w + 1);
+            triangles.push((d * (mesh_width_u32 + 1)) + w + 1);
         }
     }
 

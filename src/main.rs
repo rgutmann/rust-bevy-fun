@@ -1,5 +1,4 @@
 use std::f32::consts::TAU;
-use std::rc::Rc;
 use bevy::input::mouse::{MouseMotion, MouseButton};
 //use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
@@ -184,7 +183,7 @@ fn setup(
         commands.spawn(PbrBundle {
                 mesh: meshes.add(mesh2),
                 material: materials.add(color_map.clone().into()),
-                transform: Transform::from_xyz(terrain.size as f32, -0., 0.0),
+                transform: Transform::from_xyz(0.0, -0., 0.0),
                 ..Default::default()
             })
             .insert(TerrainMesh::default())
@@ -197,7 +196,7 @@ fn setup(
         commands.spawn(PbrBundle {
                 mesh: meshes.add(mesh3),
                 material: materials.add(color_map.clone().into()),
-                transform: Transform::from_xyz(0.0, -0., terrain.size as f32),
+                transform: Transform::from_xyz(0.0, -0., 0.0),
                 ..Default::default()
             })
             .insert(TerrainMesh::default())
@@ -210,7 +209,7 @@ fn setup(
         commands.spawn(PbrBundle {
                 mesh: meshes.add(mesh4),
                 material: materials.add(color_map.clone().into()),
-                transform: Transform::from_xyz(-terrain.size as f32, -0., 0.0),
+                transform: Transform::from_xyz(0.0, -0., 0.0),
                 ..Default::default()
             })
             .insert(TerrainMesh::default())
@@ -223,7 +222,7 @@ fn setup(
         commands.spawn(PbrBundle {
                 mesh: meshes.add(mesh5),
                 material: materials.add(color_map.clone().into()),
-                transform: Transform::from_xyz(0.0, -0., -terrain.size as f32),
+                transform: Transform::from_xyz(0.0, -0., 0.0),
                 ..Default::default()
             })
             .insert(TerrainMesh::default())
