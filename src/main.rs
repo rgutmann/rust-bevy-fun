@@ -1,4 +1,5 @@
 use std::f32::consts::TAU;
+use bevy::input::common_conditions::input_toggle_active;
 use bevy::input::mouse::{MouseMotion, MouseButton};
 //use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
@@ -41,7 +42,7 @@ fn main() {
         //.add_plugin(WireframePlugin)
         .add_systems(Startup, setup)
         .add_plugins(DebugTextPlugin)
-        .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::I)))
         .insert_resource(Terrain::default())
         .add_systems(Update, user_actions)
         .add_systems(Update, cube_orbit_movement)
