@@ -275,7 +275,7 @@ fn map_update(
     let px = (ball_transform.translation.x / terrain.size as f32) as isize % width as isize;
     let py = (ball_transform.translation.z / terrain.size as f32) as isize % depth as isize;
 
-    // Create initial 5*5 meshes terrain
+    // Check and create (if necessary) 5*5 terrain meshes around player
     for x in -2+px..=2+px {
         for y in -2+py..=2+py {
             // if entity_map doesn't contain the key, create a new mesh
