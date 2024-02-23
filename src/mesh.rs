@@ -145,9 +145,9 @@ pub fn create_mesh(extent: f64, mesh_pos: (isize, isize), mesh_size: (usize, usi
             let (w_f32, d_f32) = (w as f32, d as f32);
 
             let pos = [
-                (mesh_x as f32 + w_f32 - mesh_width_f32 / 2.) * (extent_f32 / mesh_width_f32),
+                (mesh_x as f32 + w_f32) * (extent_f32 / mesh_width_f32),
                 (map.get_value(map_x, map_y) as f32) * intensity,
-                (mesh_y as f32 + d_f32 - mesh_depth_f32 / 2.) * (extent_f32 / mesh_depth_f32),
+                (mesh_y as f32 + d_f32) * (extent_f32 / mesh_depth_f32),
             ];
             positions.push(pos);
             normals.push([0.0, 1.0, 0.0]);

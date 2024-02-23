@@ -1,10 +1,11 @@
 use std::f32::consts::TAU;
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::input::mouse::{MouseMotion, MouseButton};
+use bevy::utils::HashMap;
 //use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
 use bevy_rapier3d::prelude::{RapierPhysicsPlugin, NoUserData};
 use debug::DebugTextPlugin;
-use mesh::{create_mesh, load_elevation_map};
+use mesh::{create_mesh, load_elevation_map, ElevationMap};
 use rand::prelude::*;
 use bevy::prelude::*;
 use bevy::diagnostic::LogDiagnosticsPlugin;
@@ -45,6 +46,7 @@ fn main() {
         .add_plugins(WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::I)))
         .insert_resource(Terrain::default())
         .add_systems(Update, user_actions)
+        .add_systems(Update, map_update)
         .add_systems(Update, cube_orbit_movement)
         .run();
 }
@@ -60,9 +62,9 @@ struct MovableBall {
 }
 impl MovableBall {
     const RADIUS:f32 = 0.5;
-    const INITIAL_POSITION:Transform = Transform::from_xyz(40.0, 10.0, 30.0);
+    const INITIAL_POSITION:Transform = Transform::from_xyz(100.0, 20.0, 100.0);
     const DEATH_HEIGHT:f32 = -10.0;
-    const MAX_MOVEMENT_SPEED:f32 = 12.0;
+    const MAX_MOVEMENT_SPEED:f32 = 24.0;
     const INC_MOVEMENT_SPEED:f32 = 20.0; // times delta_seconds
     const SHIFT_MOVEMENT_MULTIPLIER:f32 = 3.0;
     const JUMP_SPEED:f32 = 5.0;
@@ -94,6 +96,10 @@ impl Default for MovableBall {
 struct Terrain {
     size: f64,
     intensity: f32,
+    colormap: Option<Handle<Image>>,
+    map: Option<ElevationMap>,
+    mesh_size: (usize, usize), 
+    entity_map: HashMap<(usize,usize),Entity>
 }
 impl Terrain {
     const DEFAULT_SIZE:f64 = 200.0;
@@ -102,23 +108,36 @@ impl Terrain {
         self.size = Terrain::DEFAULT_SIZE;
         self.intensity = Terrain::DEFAULT_INTENSITY;
     }
+    fn get_map(&self) -> &ElevationMap {
+        self.map.as_ref().unwrap()
+    }
+    fn get_colormap(&self) -> Handle<Image> {
+        self.colormap.as_ref().unwrap().clone()
+    }
 }
 impl Default for Terrain {
     fn default() -> Self {
         Terrain { 
             size: Terrain::DEFAULT_SIZE,
             intensity: Terrain::DEFAULT_INTENSITY,
+            colormap: Option::None,
+            map: Option::None,
+            mesh_size: (0, 0),
+            entity_map: HashMap::default()
         }
     }
 }
 
 #[derive(Component,Debug)]
 struct TerrainMesh {
-    //position: (),
+    _x: isize,
+    _y: isize,
 }
-impl Default for TerrainMesh {
-    fn default() -> Self {
-        TerrainMesh { 
+impl TerrainMesh {
+    fn new(x :isize,y :isize) -> Self {
+        TerrainMesh {
+            _x: x,
+            _y: y,
         }
     }
 }
@@ -132,7 +151,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
-    terrain: Res<Terrain>,
+    mut terrain: ResMut<Terrain>,
     //seed: Res<Seed>,
 ) {
     
@@ -160,28 +179,16 @@ fn setup(
     // let elevation_map: Handle<Image> = asset_server.load("fbm.png").into();
     // let map = load_elevation_map( "example_images/fbm.png", 2.0);
 
+    // Initialize terrain creation
     // staigermanus dogwaffle terrain3 map https://www.renderosity.com/freestuff/items/77673
-    let color_map: Handle<Image> = asset_server.load("dogwaffle-terrain3/dogwaffle-terrain3-colr.png").into();
-    let map = load_elevation_map( "assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.png", 4.0);
-    let (width, depth) = map.size();
     // 1024 * 768 = (2^10) * (3*2^8)
+    let color_map: Handle<Image> = asset_server.load("dogwaffle-terrain3/dogwaffle-terrain3-colr.png").into();
+    let map = load_elevation_map("assets/dogwaffle-terrain3/dogwaffle-terrain3-elev.png", 4.0);
+    let (width, depth) = map.size();
+    terrain.colormap = Option::Some(color_map);
+    terrain.map = Option::Some(map);
+    terrain.mesh_size = (width, depth);
 
-    // Create initial 3*3 meshes terrain
-    for x in -1..=1 {
-        for y in -1..=1 {
-            let mesh = create_mesh(terrain.size, (x*width as isize,y*depth as isize), (width, depth), &map, terrain.intensity);
-            commands.spawn(PbrBundle {
-                    mesh: meshes.add(mesh),
-                    material: materials.add(color_map.clone().into()),
-                    transform: Transform::from_xyz(0.0, -0., 0.0),
-                    ..Default::default()
-                })
-                .insert(TerrainMesh::default())
-                //.insert(Collider::from_bevy_mesh(&mesh,ComputedColliderShape::TriMesh))
-                //.insert(Wireframe)
-                .insert(Name::new(format!("TerrainMesh[{x}][{y}]")));
-        }
-    }
 
     // Create the ball
     let ball_entity = commands
@@ -253,6 +260,47 @@ fn setup(
 
 }
 
+
+/// Dynamically create and update terrain map
+fn map_update(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut terrain: ResMut<Terrain>,
+    ball_query: Query<&Transform, (With<MovableBall>,Without<MovableCube>,Without<CameraControl>)>,
+) {
+    let ball_transform = ball_query.single();
+    let (width, depth) = terrain.mesh_size;
+    // Player position
+    let px = (ball_transform.translation.x / terrain.size as f32) as isize % width as isize;
+    let py = (ball_transform.translation.z / terrain.size as f32) as isize % depth as isize;
+
+    // Create initial 5*5 meshes terrain
+    for x in -2+px..=2+px {
+        for y in -2+py..=2+py {
+            // if entity_map doesn't contain the key, create a new mesh
+            if !terrain.entity_map.contains_key(&(x as usize, y as usize)) {
+                println!("Creating new mesh at [{x}][{y}]", x=x, y=y);
+                let mesh = create_mesh(terrain.size, (x * width as isize, y * depth as isize), (width, depth), terrain.get_map(), terrain.intensity);
+                let mesh_entity = commands.spawn(PbrBundle {
+                        mesh: meshes.add(mesh),
+                        material: materials.add(terrain.get_colormap().into()),
+                        transform: Transform::from_xyz(0.0, -0., 0.0),
+                        ..Default::default()
+                    })
+                    .insert(TerrainMesh::new(x, y))
+                    //.insert(Collider::from_bevy_mesh(&mesh,ComputedColliderShape::TriMesh))
+                    //.insert(Wireframe)
+                    .insert(Name::new(format!("TerrainMesh[{x}][{y}]")))
+                    .id();
+                terrain.entity_map.insert((x as usize, y as usize), mesh_entity);
+            }
+        }
+    }
+}
+
+
+/// handle user input
 fn user_actions(
     input: Res<Input<KeyCode>>,
     time: Res<Time>,
